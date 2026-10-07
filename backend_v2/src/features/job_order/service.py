@@ -64,29 +64,50 @@ def get_job_order_from_erp(db: Session, job_order: str):
 
 def get_mocked_job_order(db: Session, job_order: str):
     """
-    Returns simulated Job Order details based on local products database.
+    DEMO MODE: Returns simulated Job Order details from local SQLite products.
+    Cycles through Erro weight_scale products based on the job_order string,
+    so different job orders map to different products for a realistic demo.
+    Falls back to any product if no Erro products exist.
     """
-    product = db.query(models.Product).filter(models.Product.item_name == "UACC-Cable-Path-Outdoor-2M-BK").first()
-    if not product:
-        product = db.query(models.Product).first()
-        
+    # Try to find Erro weight_scale products first (most interesting for demo)
+    erro_products = (
+        db.query(models.Product)
+        .join(models.Customer)
+        .filter(
+            models.Customer.code == "ERRO",
+            models.Product.packing_mode == "weight_scale",
+            models.Product.internal_factory_part_number.isnot(None),
+        )
+        .all()
+    )
+
+    if erro_products:
+        # Cycle through Erro products deterministically by job_order hash
+        idx = sum(ord(c) for c in job_order) % len(erro_products)
+        product = erro_products[idx]
+        factory_pn = product.internal_factory_part_number or product.item_name or "UNKNOWN"
+        return {
+            "job_order": job_order,
+            "product_code": factory_pn,
+            "customer_ref": product.item_name or factory_pn,
+            "quantity": 20 * (product.packed_qty or 1),
+        }
+
+    # Fallback: any product
+    product = db.query(models.Product).first()
     if not product:
         return {
             "job_order": job_order,
-            "product_code": "1CAD2420D2BK01NX9",
-            "customer_ref": "UACC-Cable-Patch-Outdoor-2M-BK",
-            "quantity": 750
+            "product_code": "DEMO-001",
+            "customer_ref": "Demo Product",
+            "quantity": 300,
         }
-        
-    ref_name = "UACC-Cable-Patch-Outdoor-2M-BK"
-    if product and product.item_name:
-        if "Outdoor-2M-BK" not in product.item_name:
-            ref_name = product.item_name
+
     return {
         "job_order": job_order,
-        "product_code": "1CAD2420D2BK01NX9",
-        "customer_ref": ref_name,
-        "quantity": 15 * (product.packed_qty or 1) if product else 750
+        "product_code": product.internal_factory_part_number or product.item_name or "DEMO-001",
+        "customer_ref": product.item_name or "Demo Product",
+        "quantity": 15 * (product.packed_qty or 1),
     }
 
 

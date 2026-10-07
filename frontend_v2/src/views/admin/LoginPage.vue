@@ -76,7 +76,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 const username = ref<string>('admin');
-const password = ref<string>('');
+const password = ref<string>('demo123');
 const error = ref<string>('');
 const loading = ref<boolean>(false);
 const userInput = ref<HTMLInputElement | null>(null);

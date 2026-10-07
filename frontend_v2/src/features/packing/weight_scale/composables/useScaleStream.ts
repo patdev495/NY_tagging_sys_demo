@@ -2,9 +2,12 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import scaleApi from '../../scaleApi';
 import type { ScaleReading, ScaleStatus } from '../../../../types/api';
 
+const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+
 export interface UseScaleStreamOptions {
   getAgentUrl?: () => string;
   autoStart?: boolean;
+  targetWeight?: number; // used by demo simulation
   onNotification?: (message: string, type: 'info' | 'success' | 'warning' | 'error') => void;
 }
 
@@ -14,16 +17,19 @@ export function useScaleStream(
 ) {
   let getAgentUrl: () => string;
   let autoStart = false;
+  let targetWeight = options?.targetWeight ?? 5.0;
 
   if (typeof agentUrlSource === 'function') {
     getAgentUrl = agentUrlSource;
     if (options?.autoStart !== undefined) autoStart = options.autoStart;
+    if (options?.targetWeight !== undefined) targetWeight = options.targetWeight;
   } else if (typeof agentUrlSource === 'string') {
     getAgentUrl = () => agentUrlSource;
     if (options?.autoStart !== undefined) autoStart = options.autoStart;
   } else if (typeof agentUrlSource === 'object' && agentUrlSource !== null) {
     getAgentUrl = agentUrlSource.getAgentUrl || (() => 'http://127.0.0.1:8080');
     autoStart = !!agentUrlSource.autoStart;
+    if (agentUrlSource.targetWeight !== undefined) targetWeight = agentUrlSource.targetWeight;
   } else {
     getAgentUrl = () => 'http://127.0.0.1:8080';
   }
@@ -47,22 +53,36 @@ export function useScaleStream(
   let scalePollInterval: any = null;
   let statusPollInterval: any = null;
 
+  // ── DEMO MODE: simulate oscillating weight readings ──────────────────────
+  let _demoPhase = Math.random() * Math.PI * 2; // random start phase
+
+  const simulateDemoReading = () => {
+    _demoPhase += 0.15 + Math.random() * 0.05;
+    const oscillation = Math.sin(_demoPhase) * 0.04 + (Math.random() - 0.5) * 0.02;
+    const simulatedWeight = Math.max(0, targetWeight + oscillation);
+    scaleReading.value = {
+      weight: parseFloat(simulatedWeight.toFixed(3)),
+      unit: 'kg',
+      is_stable: Math.abs(oscillation) < 0.025,
+      is_tare: false,
+      is_net: false,
+    };
+    isAgentOnline.value = true;
+    scaleStatus.value = { connected: true, port: 'DEMO', baudrate: 9600, is_streaming: true };
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const pollScale = async (force: boolean = false) => {
-    if (!isAgentOnline.value && !force) {
-      return;
-    }
+    if (IS_DEMO) { simulateDemoReading(); return; }
+    if (!isAgentOnline.value && !force) return;
     const agentUrl = getAgentUrl();
     try {
       const reading = await scaleApi.getScaleCurrent(agentUrl);
       if (reading) {
         isAgentOnline.value = true;
         scaleReading.value = reading;
-        if (reading.connected !== undefined) {
-          scaleStatus.value.connected = reading.connected;
-        }
-        if (reading.is_streaming !== undefined) {
-          scaleStatus.value.is_streaming = reading.is_streaming;
-        }
+        if (reading.connected !== undefined) scaleStatus.value.connected = reading.connected;
+        if (reading.is_streaming !== undefined) scaleStatus.value.is_streaming = reading.is_streaming;
       }
     } catch {
       isAgentOnline.value = false;
@@ -72,6 +92,7 @@ export function useScaleStream(
   };
 
   const pollScaleStatus = async () => {
+    if (IS_DEMO) return; // demo status is set by simulateDemoReading
     const agentUrl = getAgentUrl();
     try {
       const status = await scaleApi.getScaleStatus(agentUrl);
@@ -90,28 +111,18 @@ export function useScaleStream(
     stopPolling();
     pollScale();
     pollScaleStatus();
-    scalePollInterval = setInterval(pollScale, 100);
-    statusPollInterval = setInterval(pollScaleStatus, 2000);
+    scalePollInterval = setInterval(pollScale, IS_DEMO ? 500 : 100);
+    if (!IS_DEMO) statusPollInterval = setInterval(pollScaleStatus, 2000);
   };
 
   const stopPolling = () => {
-    if (scalePollInterval) {
-      clearInterval(scalePollInterval);
-      scalePollInterval = null;
-    }
-    if (statusPollInterval) {
-      clearInterval(statusPollInterval);
-      statusPollInterval = null;
-    }
+    if (scalePollInterval) { clearInterval(scalePollInterval); scalePollInterval = null; }
+    if (statusPollInterval) { clearInterval(statusPollInterval); statusPollInterval = null; }
   };
 
   if (autoStart) {
-    onMounted(() => {
-      startPolling();
-    });
-    onUnmounted(() => {
-      stopPolling();
-    });
+    onMounted(() => { startPolling(); });
+    onUnmounted(() => { stopPolling(); });
   }
 
   return {

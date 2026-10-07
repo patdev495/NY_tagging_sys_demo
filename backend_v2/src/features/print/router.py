@@ -92,9 +92,16 @@ def server_print_carton(carton_id: int, request: Request, printer_name: str | No
     carton = db.query(service.models.Carton).filter(service.models.Carton.id == carton_id).first()
     if not carton:
         return {"success": False, "message": "Carton not found"}
-    
+
     # Cập nhật trạm thực hiện in nếu chưa có hoặc in từ máy khác
     carton.station_id = client_ip  # type: ignore
+
+    # --- DEMO MODE: SQLite detected → skip BarTender, simulate success ---
+    is_demo = db.get_bind().dialect.name == "sqlite"
+    if is_demo:
+        carton.status = print_attempts.successful_print_status(db, carton)  # type: ignore
+        db.commit()
+        return {"success": True, "message": "Demo mode — print simulated successfully"}
 
     carton_btxml = carton.btxml
     if not carton_btxml:  # type: ignore

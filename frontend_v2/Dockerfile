@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+RUN VITE_DEMO_MODE=true npm run build
 
 # Stage 2: Production
 FROM nginx:stable-alpine as production-stage
