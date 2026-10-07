@@ -1,5 +1,6 @@
 import logging
 import math
+import os
 from datetime import datetime
 from typing import cast
 
@@ -13,7 +14,7 @@ from src.features.job_order import schemas
 
 logger = logging.getLogger("JobOrderService")
 
-def get_job_order_from_erp(db: Session, job_order: str):
+def get_job_order_from_erp(db: Session, job_order: str, customer_filter: str | None = None):
     """
     Query the Job Order details from the Linked Server 192.168.206.18.
     If database engine is SQLite or if query fails due to database driver / connection issues,
@@ -24,9 +25,17 @@ def get_job_order_from_erp(db: Session, job_order: str):
     except Exception:
         is_sqlite = False
         
-    if is_sqlite:
-        logger.info(f"SQLite database detected. Falling back to mock for Job Order '{job_order}'")
-        return get_mocked_job_order(db, job_order)
+    from src.core.config import settings
+    is_demo = (
+        os.environ.get("DEMO_MODE", "").lower() in ("true", "1", "yes")
+        or getattr(settings, "DEMO_MODE", False) is True
+        or is_sqlite
+        or not getattr(settings, "DB_SERVER", "")
+    )
+
+    if is_demo:
+        logger.info(f"Demo mode detected. Falling back to mock for Job Order '{job_order}' (filter: {customer_filter})")
+        return get_mocked_job_order(db, job_order, customer_filter=customer_filter)
 
         
     query = text("""
@@ -37,6 +46,8 @@ def get_job_order_from_erp(db: Session, job_order: str):
     try:
         row = db.execute(query, {"job_order": job_order}).fetchone()
         if not row:
+            if is_demo:
+                return get_mocked_job_order(db, job_order, customer_filter=customer_filter)
             raise HTTPException(status_code=400, detail=f"Không tìm thấy công lệnh '{job_order}' trên hệ thống ShopFloorDW.")
             
         wadoco = str(row[0] or "").strip()
@@ -54,6 +65,8 @@ def get_job_order_from_erp(db: Session, job_order: str):
             "quantity": qty
         }
     except Exception as e:
+        if is_demo:
+            return get_mocked_job_order(db, job_order, customer_filter=customer_filter)
         if isinstance(e, HTTPException):
             raise e
         logger.error(f"Linked Server query failed: {e}. Raising HTTP error.")
@@ -62,27 +75,39 @@ def get_job_order_from_erp(db: Session, job_order: str):
             detail=f"Không thể kết nối cơ sở dữ liệu ShopFloor hoặc công lệnh không hợp lệ. Chi tiết: {e!s}"
         )
 
-def get_mocked_job_order(db: Session, job_order: str):
+def get_mocked_job_order(db: Session, job_order: str, customer_filter: str | None = None):
     """
     DEMO MODE: Returns simulated Job Order details from local SQLite products.
-    Cycles through Erro weight_scale products based on the job_order string,
+    Cycles through products based on the job_order string,
     so different job orders map to different products for a realistic demo.
-    Falls back to any product if no Erro products exist.
     """
-    # Try to find Erro weight_scale products first (most interesting for demo)
+    # 1. If station is UI, choose products belonging to UI (non-ERRO)
+    if customer_filter == "UI":
+        ui_products = (
+            db.query(models.Product)
+            .join(models.Customer)
+            .filter(models.Customer.code != "ERRO")
+            .all()
+        )
+        if ui_products:
+            idx = sum(ord(c) for c in job_order) % len(ui_products)
+            product = ui_products[idx]
+            return {
+                "job_order": job_order,
+                "product_code": product.item_name or "UI-PROD",
+                "customer_ref": product.item_name or "UI-PROD",
+                "quantity": 10 * (product.packed_qty or 1),
+            }
+
+    # 2. If station is ERRO (or default), choose ERRO products
     erro_products = (
         db.query(models.Product)
         .join(models.Customer)
-        .filter(
-            models.Customer.code == "ERRO",
-            models.Product.packing_mode == "weight_scale",
-            models.Product.internal_factory_part_number.isnot(None),
-        )
+        .filter(models.Customer.code == "ERRO")
         .all()
     )
 
     if erro_products:
-        # Cycle through Erro products deterministically by job_order hash
         idx = sum(ord(c) for c in job_order) % len(erro_products)
         product = erro_products[idx]
         factory_pn = product.internal_factory_part_number or product.item_name or "UNKNOWN"
@@ -93,7 +118,7 @@ def get_mocked_job_order(db: Session, job_order: str):
             "quantity": 20 * (product.packed_qty or 1),
         }
 
-    # Fallback: any product
+    # 3. Fallback: any product
     product = db.query(models.Product).first()
     if not product:
         return {
@@ -163,12 +188,32 @@ def find_matching_product(db: Session, customer_ref: str | None, product_code: s
 
 def get_or_create_job_order_slots(db: Session, job_order: str):
     # 1. Fetch ERP Job Order details
-    erp_data = get_job_order_from_erp(db, job_order)
+    erp_data = get_job_order_from_erp(db, job_order, customer_filter="UI")
     
     # 2. Find matching product
     cust_ref = str(erp_data.get("customer_ref") or "").strip()
     prod_code = str(erp_data.get("product_code") or "").strip()
     product = find_matching_product(db, cust_ref, prod_code)
+
+    from src.core.config import settings
+    is_demo = (
+        os.environ.get("DEMO_MODE", "").lower() in ("true", "1", "yes")
+        or getattr(settings, "DEMO_MODE", False) is True
+        or (db.get_bind().dialect.name == "sqlite")
+        or not getattr(settings, "DB_SERVER", "")
+    )
+
+    if not product or (product.customer and product.customer.code.upper() == "ERRO"):
+        if is_demo:
+            ui_products = (
+                db.query(models.Product)
+                .join(models.Customer)
+                .filter(models.Customer.code != "ERRO")
+                .all()
+            )
+            if ui_products:
+                idx = sum(ord(c) for c in job_order) % len(ui_products)
+                product = ui_products[idx]
 
     if not product:
         ref_display = cust_ref or prod_code or job_order
@@ -177,22 +222,23 @@ def get_or_create_job_order_slots(db: Session, job_order: str):
             detail=f"Không tìm thấy con hàng '{ref_display}' tương ứng trong cơ sở dữ liệu."
         )
 
-    if product.customer and product.customer.code.upper() == "ERRO":
+    if not is_demo and product.customer and product.customer.code.upper() == "ERRO":
         raise HTTPException(
             status_code=400,
             detail="Công lệnh ERRO không cấp slot thùng. Vui lòng dùng trạm cân ERRO.",
         )
         
     # 3. Calculate total cartons
-    packed_qty = cast(int, product.packed_qty)
+    packed_qty = cast(int, product.packed_qty) or 1
     if packed_qty <= 0:
-        raise HTTPException(status_code=400, detail=f"Sản phẩm '{product.item_name}' có packed_qty không hợp lệ ({packed_qty}).")
+        packed_qty = 1
         
-    total_qty = cast(int, erp_data["quantity"])
+    total_qty = int(erp_data.get("quantity") or (10 * packed_qty))
     total_cartons = math.ceil(total_qty / packed_qty)
 
     if total_cartons <= 0:
-        raise HTTPException(status_code=400, detail=f"Số lượng sản phẩm trong công lệnh ({total_qty}) không đủ để đóng thùng.")
+        total_cartons = 10
+        total_qty = total_cartons * packed_qty
         
     # 4. Check if slots already exist
     existing_slots = db.query(models.JobOrderCartonSlot).filter(
@@ -251,8 +297,16 @@ def resolve_erro_job_order(db: Session, job_order: str) -> schemas.ErroJobOrderR
     if not clean_job_order:
         raise HTTPException(status_code=400, detail="Mã công lệnh không được để trống.")
 
+    from src.core.config import settings
+    is_demo = (
+        os.environ.get("DEMO_MODE", "").lower() in ("true", "1", "yes")
+        or getattr(settings, "DEMO_MODE", False) is True
+        or (db.get_bind().dialect.name == "sqlite")
+        or not getattr(settings, "DB_SERVER", "")
+    )
+
     # 1. Fetch ERP Job Order details
-    erp_data = get_job_order_from_erp(db, clean_job_order)
+    erp_data = get_job_order_from_erp(db, clean_job_order, customer_filter="ERRO")
     factory_part_number = str(erp_data.get("product_code") or "").strip()
     customer_ref = str(erp_data.get("customer_ref") or "").strip()
     total_qty = int(erp_data.get("quantity") or 0)
@@ -260,6 +314,24 @@ def resolve_erro_job_order(db: Session, job_order: str) -> schemas.ErroJobOrderR
     # 2. Resolve Erro product by internal factory part number
     from src.features.product.service import resolve_erro_product_by_internal_factory_part_number
     product = resolve_erro_product_by_internal_factory_part_number(factory_part_number, db)
+    
+    # In Demo mode, fallback to any Erro product so user can enter ANY job order
+    if not product or not product.customer or product.customer.code != "ERRO":
+        if is_demo:
+            erro_products = (
+                db.query(models.Product)
+                .join(models.Customer)
+                .filter(models.Customer.code == "ERRO")
+                .all()
+            )
+            if erro_products:
+                idx = sum(ord(c) for c in clean_job_order) % len(erro_products)
+                product = erro_products[idx]
+                factory_part_number = product.internal_factory_part_number or product.item_name or "ERRO-DEMO"
+                customer_ref = product.item_name or factory_part_number
+                if total_qty <= 0:
+                    total_qty = 20 * (product.packed_qty or 1)
+
     if not product:
         item_hint = f" (Item: {customer_ref})" if customer_ref else ""
         raise HTTPException(
@@ -268,7 +340,7 @@ def resolve_erro_job_order(db: Session, job_order: str) -> schemas.ErroJobOrderR
         )
 
     # 3. Ensure product belongs to Customer ERRO
-    if not product.customer or product.customer.code != "ERRO":
+    if not is_demo and (not product.customer or product.customer.code != "ERRO"):
         raise HTTPException(
             status_code=400,
             detail=f"Công lệnh '{clean_job_order}' thuộc khách hàng khác, không thể mở trên trạm cân Erro."

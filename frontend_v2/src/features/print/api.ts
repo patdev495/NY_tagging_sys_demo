@@ -28,6 +28,9 @@ export default {
   },
   /** Gửi lệnh in qua Local Agent (Chạy tại máy trạm) */
   async agentPrint(agentUrl: string, xmlContent: string, printerName?: string, localTemplateDir?: string) {
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      return { success: true, message: 'Demo print simulated successfully' };
+    }
     try {
       const response = await fetch(`${agentUrl}/print`, {
         method: 'POST',
@@ -54,6 +57,9 @@ export default {
     }
   },
   async agentHealth(agentUrl: string) {
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      return { bartender_ready: true };
+    }
     const response = await fetch(`${agentUrl}/health`);
     if (!response.ok) throw new Error('AGENT_CONNECTION_FAILED');
     return response.json() as Promise<{ bartender_ready: boolean }>;

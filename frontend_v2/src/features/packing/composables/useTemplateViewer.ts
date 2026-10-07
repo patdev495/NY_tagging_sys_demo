@@ -50,6 +50,12 @@ export function useTemplateViewer(options: UseTemplateViewerOptions = {}) {
     const folder = getLocalTemplateDir();
     const agentUrl = getAgentUrl();
 
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      options.notify?.(`[Demo] Đã mô phỏng mở template ${filename}`, 'info');
+      isOpening.value = false;
+      return true;
+    }
+
     try {
       const resp = await fetch(`${agentUrl}/open-template`, {
         method: 'POST',
@@ -95,6 +101,12 @@ export function useTemplateViewer(options: UseTemplateViewerOptions = {}) {
     viewerErrorMessage.value = '';
     const folder = customFolder || targetFolder.value || getLocalTemplateDir();
     const agentUrl = getAgentUrl();
+
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      options.notify?.(`[Demo] Đã mô phỏng mở thư mục template`, 'info');
+      isOpeningFolder.value = false;
+      return true;
+    }
 
     try {
       const resp = await fetch(`${agentUrl}/open-dir`, {

@@ -21,8 +21,9 @@ export interface UseJobOrderWorkflowOptions {
 export function useJobOrderWorkflow(options: UseJobOrderWorkflowOptions) {
   const { t } = useI18n();
 
+  const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
   const currentStep = ref<number>(1);
-  const inputJobOrder = ref<string>('');
+  const inputJobOrder = ref<string>(IS_DEMO ? '1001' : '');
   const isLoadingJobOrder = ref<boolean>(false);
   const jobOrderDetails = ref<JobOrderDetails | null>(null);
   const jobOrder = ref<string>('');

@@ -65,8 +65,10 @@ const emit = defineEmits<{
   (e: 'resolved', resolution: ErroJobOrderResolution): void;
 }>();
 
+const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+
 const inputRef = ref<HTMLInputElement | null>(null);
-const value = ref('');
+const value = ref(IS_DEMO ? '1001' : '');
 const error = ref('');
 const isResolving = ref(false);
 

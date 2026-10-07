@@ -60,7 +60,7 @@ export function useAgentHealth(options: UseAgentHealthOptions) {
 
   const checkAgentHealth = async () => {
     const s = getSettings();
-    if (s.printMode !== 'local') {
+    if (import.meta.env.VITE_DEMO_MODE === 'true' || s.printMode !== 'local') {
       agentConnected.value = true;
       templateMissing.value = false;
       return;
