@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend_v2
+      dockerfile: Dockerfile
+    container_name: ny_tagging_demo_backend
+    ports:
+      - "127.0.0.1:8051:8001"
+    env_file:
+      - .env.demo
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - ./print_jobs:/app/print_jobs
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend_v2
+      dockerfile: Dockerfile
+    container_name: ny_tagging_demo_frontend
+    ports:
+      - "127.0.0.1:8050:80"
+    depends_on:
+      - backend
+    restart: always

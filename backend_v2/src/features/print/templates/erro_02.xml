@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<XMLScript Version="2.0">
+    <Command Name="Job1">
+        <Print>
+            <Format>{template_path}</Format>
+            <PrintSetup>{printer_tag}</PrintSetup>
+            <NamedSubString Name="ProductName"><Value>{product_name}</Value></NamedSubString>
+            <NamedSubString Name="QTY"><Value>{qty}</Value></NamedSubString>
+            <NamedSubString Name="SSCC_Text"><Value>{sscc_text}</Value></NamedSubString>
+            <NamedSubString Name="SSCC_CD"><Value>{sscc_cd}</Value></NamedSubString>
+            <NamedSubString Name="PN"><Value>{pn}</Value></NamedSubString>
+            <NamedSubString Name="ASIN"><Value>{asin}</Value></NamedSubString>
+            <NamedSubString Name="UnitUPC"><Value>{unit_upc}</Value></NamedSubString>
+        </Print>
+    </Command>
+</XMLScript>

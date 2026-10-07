@@ -1,0 +1,115 @@
+# Hướng Dẫn Mang Sản Phẩm (Production) Lên Máy Khác Chạy Bằng Docker
+
+Hệ thống của chúng ta sử dụng Docker và Docker Compose. Dưới đây là 2 cách để triển khai (deploy) sang một máy tính mới, tùy thuộc vào việc máy đó **có mạng Internet** hay **không có mạng Internet**.
+
+---
+
+## CÁCH 1: COPY MÃ NGUỒN VÀ BUILD TRỰC TIẾP (Khuyên dùng)
+*Áp dụng khi máy đích (máy tính mới) CÓ kết nối mạng Internet để tải các thư viện và docker image nền (Python, Node).*
+
+### Bước 1: Chuẩn bị từ máy gốc
+1. Nén toàn bộ thư mục dự án `NY_tagging_sys` thành một file `.zip`.
+   *(Bạn có thể bỏ qua thư mục `node_modules` ở frontend và `__pycache__` ở backend để file nén nhẹ hơn).*
+2. Copy file nén sang máy tính mới.
+
+### Bước 2: Chuẩn bị trên máy mới
+1. Tải và cài đặt **Docker Desktop** (dành cho Windows) từ trang chủ Docker.
+2. Bật ứng dụng Docker Desktop lên và đợi đến khi Docker Engine báo trạng thái "Running".
+3. Giải nén file `.zip` mã nguồn ra một thư mục bất kỳ (ví dụ: `D:\NY_tagging_sys`).
+
+### Bước 3: Khởi chạy hệ thống
+1. Mở Terminal (Command Prompt hoặc PowerShell).
+2. Di chuyển vào thư mục dự án vừa giải nén:
+   ```cmd
+   cd D:\NY_tagging_sys
+   ```
+3. Chạy lệnh sau để Docker tự động build hình ảnh và khởi động container:
+   ```cmd
+   docker-compose up --build -d
+   ```
+   *(Quá trình này sẽ mất khoảng 5-10 phút cho lần chạy đầu tiên để tải dependencies).*
+4. Sau khi lệnh chạy xong, hệ thống của bạn đã hoạt động:
+   - **Giao diện Web (Frontend):** Truy cập vào `http://localhost:8002`
+   - **Backend API:** Truy cập vào `http://localhost:8001/docs`
+
+---
+
+## CÁCH 2: CHUYỂN GIAO OFFLINE BẰNG FILE .TAR
+*Áp dụng khi máy đích (máy tính mới) KHÔNG có kết nối mạng (mạng nội bộ/nhà máy bảo mật cao).*
+
+### Bước 1: Đóng gói Images từ máy gốc (Máy hiện tại đang có code và có mạng)
+1. Mở Terminal tại thư mục `NY_tagging_sys` trên máy của bạn.
+2. Build các image (nếu chưa build):
+   ```cmd
+   docker-compose build
+   ```
+3. Xem tên các images vừa build bằng lệnh:
+   ```cmd
+   docker images
+   ```
+   *(Thường sẽ thấy tên dạng `ny_tagging_sys-backend` và `ny_tagging_sys-frontend`)*
+4. Xuất image ra file `.tar` bằng lệnh:
+   ```cmd
+   docker save -o backend.tar ny_tagging_sys-backend:latest
+   docker save -o frontend.tar ny_tagging_sys-frontend:latest
+   ```
+   *(Lưu ý: Sửa lại tên `ny_tagging_sys-backend:latest` cho đúng với tên bạn thấy ở lệnh `docker images`)*
+
+### Bước 2: Chuyển dữ liệu sang máy mới
+Copy các thành phần sau qua USB/ổ cứng mang sang máy mới:
+1. File `backend.tar`
+2. File `frontend.tar`
+3. Thư mục `NY_tagging_sys` (Chỉ cần giữ lại `docker-compose.yml`, thư mục `backend_v2/.env`, và thư mục `print_jobs`).
+
+### Bước 3: Nạp và chạy trên máy mới (Không cần mạng)
+1. Đảm bảo máy mới đã cài sẵn Docker (nếu chưa cài, cần mang theo file cài offline của Docker Desktop).
+2. Mở Terminal tại thư mục chứa các file vừa mang sang, chạy lệnh nạp images:
+   ```cmd
+   docker load -i backend.tar
+   docker load -i frontend.tar
+   ```
+3. **Cực kỳ quan trọng:** Sửa file `docker-compose.yml`. Thay vì để Docker tự build từ thư mục, hãy chỉ định tên Image.
+   Mở file `docker-compose.yml` và sửa đổi như sau:
+   ```yaml
+   services:
+     backend:
+       image: ny_tagging_sys-backend:latest    # Thêm dòng này
+       # build:                                # XÓA BỎ HOẶC COMMENT 3 DÒNG BUILD
+       #   context: ./backend_v2
+       #   dockerfile: Dockerfile
+       container_name: ny_tagging_backend
+       ports:
+         - "8001:8001"
+       env_file:
+         - ./backend_v2/.env
+       environment:
+         - BARTENDER_WATCH_FOLDER=/app/print_jobs
+         - TZ=Asia/Ho_Chi_Minh
+       volumes:
+         - ./print_jobs:/app/print_jobs
+       restart: always
+
+     frontend:
+       image: ny_tagging_sys-frontend:latest   # Thêm dòng này
+       # build:                                # XÓA BỎ HOẶC COMMENT 3 DÒNG BUILD
+       #   context: ./frontend_v2
+       #   dockerfile: Dockerfile
+       container_name: ny_tagging_frontend
+       ports:
+         - "8002:80"
+       depends_on:
+         - backend
+       restart: always
+   ```
+4. Khởi chạy hệ thống bằng lệnh (bỏ cờ `--build`):
+   ```cmd
+   docker-compose up -d
+   ```
+
+---
+
+## ⚠️ CÁC LƯU Ý QUAN TRỌNG KHI CHUYỂN MÁY
+1. **File Cấu Hình (`.env`)**: File `backend_v2/.env` thường bị ẩn trong Windows/Linux. Khi copy thư mục, hãy chắc chắn file này đã được copy qua, nếu không backend sẽ báo lỗi thiếu cấu hình Database.
+2. **Database Connection**: Nếu hệ thống kết nối tới Database SQL Server nằm trên máy tính cũ, bạn cần cấu hình lại IP trong file `.env` (chuỗi `DATABASE_URL`) trỏ tới IP của Database thực tế mà máy mới có thể nhìn thấy.
+3. **Thư mục In Ấn (`print_jobs`)**: Backend Docker sẽ ghi các file .xml xuất ra vào thư mục con `print_jobs` nằm trong dự án. Để BarTender có thể tự động in, bạn hãy cấu hình BarTender Integration đọc file từ đường dẫn gốc `D:\NY_tagging_sys\print_jobs` của máy mới.
+4. **Xung đột Port**: Nếu máy mới bị báo lỗi `port is already allocated` khi chạy `docker-compose up -d`, nghĩa là có phần mềm khác đang dùng port 8001 hoặc 8002. Bạn có thể sửa port trong file `docker-compose.yml` (Ví dụ sửa `- "8002:80"` thành `- "8080:80"`).

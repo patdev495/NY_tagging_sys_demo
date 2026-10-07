@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<XMLScript Version="2.0">
+    <Command Name="Job1">
+        <Print>
+            <Format>{template_path}</Format>
+            <PrintSetup>
+                {printer_tag}
+            </PrintSetup>
+            <NamedSubString Name="ItemName"><Value>{item_name}</Value></NamedSubString>
+            <NamedSubString Name="ItemName2"><Value>{item_name}</Value></NamedSubString>
+            <NamedSubString Name="ItemName3"><Value>{item_name}</Value></NamedSubString>
+            <NamedSubString Name="QTY"><Value>{qty}</Value></NamedSubString>
+            <NamedSubString Name="CartonSN"><Value>{carton_sn}</Value></NamedSubString>
+            <NamedSubString Name="UPC"><Value>{upc}</Value></NamedSubString>
+            <NamedSubString Name="QR_Content"><Value>{qr_content}</Value></NamedSubString>
+            <NamedSubString Name="Origin"><Value>{origin_text}</Value></NamedSubString>
+            <NamedSubString Name="MAC_ID"><Value>{mac_id}</Value></NamedSubString>
+            {sn_grid_tags}
+        </Print>
+    </Command>
+</XMLScript>

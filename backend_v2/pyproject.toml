@@ -1,0 +1,33 @@
+[project]
+name = "backend-v2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.110.0",
+    "uvicorn[standard]==0.27.1",
+    "httpx==0.27.0",
+    "pydantic==2.6.3",
+    "pydantic-settings==2.2.1",
+    "pyodbc==5.1.0",
+    "python-dotenv==1.0.1",
+    "sqlalchemy==2.0.28",
+    "pywin32>=306; sys_platform == 'win32'",
+    "openpyxl>=3.1.5",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.20.0",
+    "pyright>=1.1.414",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.16.7",
+]
+
+[tool.pyright]
+extraPaths = ["."]
+venvPath = "d:/Workspace/NY_tagging_sys/backend_v2"
+venv = ".venv"

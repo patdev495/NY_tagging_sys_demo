@@ -1,0 +1,16 @@
+[project]
+name = "mcp-server"
+version = "0.1.0"
+description = "MCP Server for NY Tagging System"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=0.1.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.1",
+]
+
+[tool.pyright]
+extraPaths = ["."]
+venvPath = "d:/Workspace/NY_tagging_sys/mcp_server"
+venv = ".venv"

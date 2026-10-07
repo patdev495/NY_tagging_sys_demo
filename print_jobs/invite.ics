@@ -1,0 +1,81 @@
+BEGIN:VCALENDAR
+METHOD:REQUEST
+PRODID:Microsoft Exchange Server 2010
+VERSION:2.0
+BEGIN:VTIMEZONE
+TZID:SE Asia Standard Time
+BEGIN:STANDARD
+DTSTART:16010101T000000
+TZOFFSETFROM:+0700
+TZOFFSETTO:+0700
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:16010101T000000
+TZOFFSETFROM:+0700
+TZOFFSETTO:+0700
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+ORGANIZER;CN=Jasmine Li(黎氏风):MAILTO:Jasmine.Li@wnc.com.tw
+ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=work.phama
+ nhtu@gmail.com:MAILTO:work.phamanhtu@gmail.com
+DESCRIPTION;LANGUAGE=en-US:Dear Mr. Tu\nI would like to send you interview 
+ schedule for  SE position as below:\n-          Time interview: 10:30 – 
+ Thursday 01\, Oct 2026\n-          Type of interview: Online via Teams (Pl
+ ease join Teams link below)\n-          Interviewer:  Mr.  Syn Ruan\n-    
+       Contact person: Ms. Phuong – HR – 0364644944\nPlease prepare a s
+ table connection and join the interview link 15 minutes in advance.\nThank
+  you!\n\n_________________________________________________________________
+ _______________\nMicrosoft Teams meeting\nJoin: https://teams.microsoft.co
+ m/meet/416913620925223?p=fMESePMMpbIWyXu5Fd\nMeeting ID: 416 913 620 925 2
+ 23\nPasscode: Ty3Fs9fU\n________________________________\nNeed help?<https
+ ://aka.ms/JoinTeamsMeeting?omkt=en-US> | System reference<https://teams.mi
+ crosoft.com/l/meetup-join/19%3ameeting_MjhmYTU2ZDYtOGY5ZS00M2NmLWJkZmEtYmQ
+ 4MThiYzQ2ZWMx%40thread.v2/0?context=%7b%22Tid%22%3a%225e7e27a9-756f-49ba-a
+ 3ae-72aba10a316e%22%2c%22Oid%22%3a%226f8295d3-cf45-4e48-9c86-c590a070d51c%
+ 22%7d>\nFor organizers: Meeting options<https://teams.microsoft.com/meetin
+ gOptions/?organizerId=6f8295d3-cf45-4e48-9c86-c590a070d51c&tenantId=5e7e27
+ a9-756f-49ba-a3ae-72aba10a316e&threadId=19_meeting_MjhmYTU2ZDYtOGY5ZS00M2N
+ mLWJkZmEtYmQ4MThiYzQ2ZWMx@thread.v2&messageId=0&language=en-US>\n[Company 
+ Logo]\nIt's recommended to select the appropriate lobby control settings t
+ o enhance meeting security.\n_____________________________________________
+ ___________________________________\n\n
+UID:040000008200E00074C5B7101A82E0080000000000469D5FDD50DD01000000000000000
+ 010000000743DFFB9E5086C418DDBB0572B32859E
+SUMMARY;LANGUAGE=en-US:[WNC] Interview Invitation
+DTSTART;TZID=SE Asia Standard Time:20261001T103000
+DTEND;TZID=SE Asia Standard Time:20261001T110000
+CLASS:PUBLIC
+PRIORITY:5
+DTSTAMP:20260930T062124Z
+TRANSP:OPAQUE
+STATUS:CONFIRMED
+SEQUENCE:2
+LOCATION;LANGUAGE=en-US:Microsoft Teams Meeting
+X-MICROSOFT-CDO-APPT-SEQUENCE:2
+X-MICROSOFT-CDO-OWNERAPPTID:1396611050
+X-MICROSOFT-CDO-BUSYSTATUS:TENTATIVE
+X-MICROSOFT-CDO-INTENDEDSTATUS:BUSY
+X-MICROSOFT-CDO-ALLDAYEVENT:FALSE
+X-MICROSOFT-CDO-IMPORTANCE:1
+X-MICROSOFT-CDO-INSTTYPE:0
+X-MICROSOFT-SKYPETEAMSMEETINGURL:https://teams.microsoft.com/l/meetup-join/
+ 19%3ameeting_MjhmYTU2ZDYtOGY5ZS00M2NmLWJkZmEtYmQ4MThiYzQ2ZWMx%40thread.v2/
+ 0?context=%7b%22Tid%22%3a%225e7e27a9-756f-49ba-a3ae-72aba10a316e%22%2c%22O
+ id%22%3a%226f8295d3-cf45-4e48-9c86-c590a070d51c%22%7d
+X-MICROSOFT-SCHEDULINGSERVICEUPDATEURL:https://api-fd.scheduler.teams.micro
+ soft.com/teams/5e7e27a9-756f-49ba-a3ae-72aba10a316e/6f8295d3-cf45-4e48-9c8
+ 6-c590a070d51c/19_meeting_MjhmYTU2ZDYtOGY5ZS00M2NmLWJkZmEtYmQ4MThiYzQ2ZWMx
+ @thread.v2/0
+X-MICROSOFT-SKYPETEAMSPROPERTIES:{"cid":"19:meeting_MjhmYTU2ZDYtOGY5ZS00M2N
+ mLWJkZmEtYmQ4MThiYzQ2ZWMx@thread.v2"\,"private":true\,"type":0\,"mid":0\,"
+ rid":0\,"uid":null}
+X-MICROSOFT-DONOTFORWARDMEETING:FALSE
+X-MICROSOFT-DISALLOW-COUNTER:FALSE
+BEGIN:VALARM
+DESCRIPTION:REMINDER
+TRIGGER;RELATED=START:-PT15M
+ACTION:DISPLAY
+END:VALARM
+END:VEVENT
+END:VCALENDAR

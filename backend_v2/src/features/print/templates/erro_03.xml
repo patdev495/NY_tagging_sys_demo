@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<XMLScript Version="2.0">
+    <Command Name="Job1">
+        <Print>
+            <Format>{template_path}</Format>
+            <PrintSetup>{printer_tag}</PrintSetup>
+            <NamedSubString Name="ProjectStage"><Value>{project_stage}</Value></NamedSubString>
+            <NamedSubString Name="LuxsharePartNo"><Value>{part_no}</Value></NamedSubString>
+            <NamedSubString Name="APNRev"><Value>{apn_rev}</Value></NamedSubString>
+            <NamedSubString Name="QTY"><Value>{qty}</Value></NamedSubString>
+            <NamedSubString Name="Date"><Value>{date}</Value></NamedSubString>
+            <NamedSubString Name="LotNo"><Value>{lot_no}</Value></NamedSubString>
+            <NamedSubString Name="PartDesc"><Value>{part_desc}</Value></NamedSubString>
+            <NamedSubString Name="SupplierCode"><Value>{supplier_code}</Value></NamedSubString>
+            <NamedSubString Name="CartonSN"><Value>{carton_sn}</Value></NamedSubString>
+            <NamedSubString Name="SupplierName"><Value>{supplier_name}</Value></NamedSubString>
+            <NamedSubString Name="Origin"><Value>{origin}</Value></NamedSubString>
+            <NamedSubString Name="QR_Content"><Value>{qr_code_content}</Value></NamedSubString>
+            <NamedSubString Name="QRCode_Content"><Value>{qr_code_content}</Value></NamedSubString>
+        </Print>
+    </Command>
+</XMLScript>

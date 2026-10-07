@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<XMLScript Version="2.0">
+    <Command Name="Job1">
+        <Print>
+            <Format>{template_path}</Format>
+            <PrintSetup>{printer_tag}</PrintSetup>
+            <NamedSubString Name="CPN"><Value>{cpn}</Value></NamedSubString>
+            <NamedSubString Name="QTY"><Value>{qty}</Value></NamedSubString>
+            <NamedSubString Name="MfrPN"><Value>{mfr_pn}</Value></NamedSubString>
+            <NamedSubString Name="DateCode"><Value>{date_code}</Value></NamedSubString>
+            <NamedSubString Name="LotNo"><Value>{lot_no}</Value></NamedSubString>
+            <NamedSubString Name="PONo"><Value>{po_no}</Value></NamedSubString>
+            <NamedSubString Name="CartonSN"><Value>{carton_sn}</Value></NamedSubString>
+            <NamedSubString Name="QR_Content"><Value>{qr_content}</Value></NamedSubString>
+            <NamedSubString Name="Rev"><Value>{rev}</Value></NamedSubString>
+            <NamedSubString Name="Origin"><Value>{origin_text}</Value></NamedSubString>
+        </Print>
+    </Command>
+</XMLScript>

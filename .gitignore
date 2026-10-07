@@ -1,0 +1,42 @@
+# Database (copy manually to server — do NOT commit)
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.uv-cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend_v2/dist/
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Secrets
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp
+tmp/
+temp_pdf/
+pdf_output/
+outputs/
+print_jobs/*.xml
+print_jobs/*.pdf

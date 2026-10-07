@@ -1,0 +1,327 @@
+QUY TẮC SINH MÃ VÀ ĐỊNH NGHĨA TRƯỜNG IN TEM (ERRO & UI)
+======================================================
+
+MỤC ĐÍCH
+--------
+Tài liệu này mô tả chi tiết và chuẩn xác:
+1. Quy tắc sinh Carton SN (mã thùng), phạm vi bộ đếm và chu kỳ reset tự động
+   cho toàn bộ các mẫu tem trong hệ thống NY Tagging:
+   - 5 mẫu tem của khách hàng Erro: erro_01 đến erro_05.
+   - 2 mẫu tem của khách hàng UI (Universal Instruments): standard và detailed.
+2. Danh mục đầy đủ tất cả các trường dữ liệu in lên tem (NamedSubStrings truyền
+   vào động cơ BarTender qua BTXMLScript) và cách sinh từng trường.
+3. Cấu trúc mã vạch Barcode 1D và mã ma trận QR Code 2D cho từng mẫu tem.
+
+Đây là tài liệu quy chuẩn kỹ thuật đồng bộ giữa Mã nguồn backend, Cơ sở dữ
+liệu, Bản vẽ kỹ thuật khách hàng và Từ điển nghiệp vụ CONTEXT.md.
+
+
+NGUYÊN TẮC CHUNG VỀ CẤP SỐ VÀ IN TEM
+------------------------------------
+1. Quy chế cấp mã của Khách hàng Erro (theo ADR-0011):
+   - Chế độ đóng gói: Cân trọng lượng (weight_scale).
+   - Truy nguyên nguồn gốc: Quét/nhập số Job Order (wadoco) từ phiếu công lệnh
+     ERP ShopFloorDW (F4801). Hệ thống tự động tra cứu Factory P/N (walitm) để
+     xác định chính xác Product và mẫu tem Erro tương ứng.
+   - Cấp số JIT (Just-In-Time): Hệ thống KHÔNG cấp phát trước số thùng (không
+     tạo JobOrderCartonSlot như UI). Carton SN chỉ được tính toán và cấp phát JIT
+     ngay tại thời điểm thùng hàng đặt lên cân thỏa mãn dải trọng lượng cho phép
+     (Weight Tolerance: min_weight <= weight <= max_weight) và người vận hành
+     kích hoạt in (phím F9 hoặc nút Cân & In).
+   - Xem trước tem (Label Print Preview): Màn hình xem trước chỉ mô phỏng bố cục;
+     không ghi nhận và không làm tăng bộ đếm Carton SN trong CSDL.
+
+2. Quy chế cấp mã của Khách hàng UI:
+   - Chế độ đóng gói: Quét mã con (item_scan).
+   - Cấp phát trước thùng: Khi mở Job Order, hệ thống tự động tính toán tổng số
+     thùng và cấp phát trước các vị trí thùng (JobOrderCartonSlot).
+   - Quét đủ số lượng sản phẩm con (packed_qty) hoặc cho phép đóng thiếu
+     (allow_partial), hệ thống mới cho phép xuất tem in.
+
+3. Thuật toán tìm số thứ tự kế tiếp:
+   - Hệ thống quét các bản ghi Carton gốc đã lưu (is_reprint = 0), tìm số thứ
+     tự lớn nhất trong phạm vi bộ đếm rồi cộng 1 (+1).
+   - Carton in lại (is_reprint = 1) luôn bị loại bỏ khỏi phép tính bộ đếm.
+
+4. Cơ chế khóa chống cấp trùng (Concurrency Lock):
+   - Khi có nhiều trạm cân hoặc nhiều lệnh in đồng thời, backend sử dụng khóa
+     bi quan (with_for_update) trên các bản ghi Product liên quan:
+     + erro_01: Khóa bản ghi Product đang in.
+     + erro_02: Khóa toàn bộ Product erro_02 có cùng company_prefix.
+     + erro_03: Khóa bản ghi Product đang in.
+     + erro_04: Khóa toàn bộ Product erro_04 (do chung bộ đếm H/K).
+     + erro_05: Khóa toàn bộ Product erro_05 (do chung bộ đếm tháng).
+     + UI (standard/detailed): Khóa bản ghi Product đang cấp slot.
+
+5. Quy tắc gán Lot Number và PO Number (theo CONTEXT.md):
+   - Lot Number: Với cả 5 mẫu tem Erro, backend tự động gán snapshot YYYYMMDD
+     theo Giờ Cục bộ máy chủ (Local Server Time) tại thời điểm cấp mã. Người
+     vận hành không phải nhập tay mã Lot. Hai thùng đóng qua 00:00 đêm sẽ tự
+     động mang hai Lot Number khác nhau.
+   - PO Number: Bắt buộc đối với erro_04 (Amazon eero), hệ thống sẽ chặn in nếu
+     để trống. Đối với erro_01, erro_02, erro_03, erro_05, PO Number là tùy chọn.
+
+
+BẢNG TỔNG HỢP QUY TẮC SINH MÃ VÀ RESET
+---------------------------------------
+Mẫu       Carton SN                          Phạm vi bộ đếm            Chu kỳ Reset
+erro_01   {pkg_prefix}{YYMM}{seq:06d}        Riêng từng Product        Đầu năm (01/01)
+erro_02   0{company_prefix}{seq:07d}{cd}     Chung theo company_prefix Không reset
+erro_03   {supplier}{YYMMDD}{seq:04d}        Riêng từng Product        Đầu năm (01/01)
+erro_04   {H|K}{mã-ngày-B32}{seq-B32:04s}    Chung mọi erro_04         Đầu năm (01/01)
+erro_05   {pkg_prefix}2{YYWW}{seq:05d}       Chung mọi erro_05         Đầu tháng (ngày 1)
+UI Base   {start_part}{YYMM}{middle}{seq:05d}Riêng từng Product        Đầu tháng (ngày 1)
+UI Detail {start_part}{YYMM}{middle}{seq:05d}Riêng từng Product        Đầu tháng (ngày 1)
+
+
+CHI TIẾT TỪNG MẪU TEM VÀ CÁC TRƯỜNG IN
+======================================
+
+1) erro_01 - PD014736 / Tem 1 (Customer Erro)
+---------------------------------------------
+A. Quy tắc Carton SN:
+   - Định dạng: {pkg_prefix}{YYMM}{sequence 6 chữ số}
+   - Ví dụ: VHK00102372608000081 (với prefix VHK0010237, tháng 08/2026, số 81)
+   - Tiền tố (pkg_prefix): Lấy từ Product.pkg_prefix -> Product.start_part ->
+     mặc định VHK0010237.
+   - Bộ đếm và Reset: Riêng từng Product. Hệ thống tìm số lớn nhất có tiền tố
+     {pkg_prefix}{YY}; số thứ tự chạy liên tục qua các tháng trong năm (từ 000001
+     đến 999999). Tự động reset về 000001 vào ngày 01/01 đầu năm mới.
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   1    CPN                    Customer Part Number       product.item_name
+   2    QTY                    Số lượng đóng gói          str(product.packed_qty or 190)
+   3    MfrPN                  NYS Spec No (Thừa nhận thư)product.mfr_pn (VD: NYS5998)
+   4    DateCode               Mã tuần sản xuất           YYWW (ISO week theo giờ máy chủ)
+   5    LotNo                  Mã số lô sản xuất          YYYYMMDD (Backend tự động sinh)
+   6    PONo                   Mã đơn hàng khách hàng     carton.po_number (Tùy chọn)
+   7    CartonSN               Mã thùng (PKG ID)          Carton SN đã cấp phát
+   8    Rev                    Phiên bản sản phẩm         product.revision
+   9    Origin                 Xuất xứ hàng hóa           "Made in Vietnam" (VN) / "Made in China" (CN)
+   10   QR_Content             Nội dung mã QR 2D          Chuỗi định dạng ghép:
+                                                          P{CPN},Q{QTY},M{MfrPN},D{DateCode},L{LotNo},K{PONo},S{CartonSN}
+
+C. Mã vạch Barcode và QR Code:
+   - Barcode 1D: In mã CartonSN (PKG ID).
+   - QR Code 2D: Ghép chuẩn Erro tiền tố P, Q, M, D, L, K, S như công thức trên.
+
+
+2) erro_02 - PD027504 / Tem 2 SSCC (Customer Erro)
+--------------------------------------------------
+A. Quy tắc Carton SN (Chuẩn 17 chữ số theo bản vẽ PD027504):
+   - Định dạng: 0{company_prefix 8 số}{sequence 7 số}{check_digit 1 số}
+   - Ví dụ: 03703390700000013
+   - Tiền tố công ty (company_prefix): 8 chữ số, lấy từ Product.pkg_prefix
+     (mặc định 37033907).
+   - Số thứ tự (sequence): 7 chữ số (0000001 đến 9999999).
+   - Check Digit (cd): 1 chữ số tính theo thuật toán GS1 Modulo 10 từ 16 chữ số
+     đầu tiên: 0 + company_prefix (8 số) + sequence (7 số).
+   - Bộ đếm và Reset: Dùng chung cho tất cả Product erro_02 có cùng company_prefix.
+     Tăng liên tục đơn điệu và KHÔNG BAO GIỜ reset theo ngày, tháng hay năm.
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   1    ProductName            Tên / Mô tả sản phẩm       "Product name:" + product.product_desc
+                                                          (nếu không có desc thì lấy product.item_name)
+   2    QTY                    Số lượng sản phẩm          str(product.packed_qty or 190)
+   3    SSCC_Text              Chuỗi hiển thị người đọc   "(00) 0 {company_prefix} {seq:07d}"
+                                                          (VD: "(00) 0 37033907 0000001")
+   4    SSCC_CD                Chữ số kiểm tra SSCC       check_digit (1 chữ số)
+   5    PN                     Mã chứng nhận sản xuất     product.mfr_pn
+   6    ASIN                   Mã Amazon ASIN             product.asin (10 ký tự chữ và số)
+   7    UnitUPC                Mã UPC bán lẻ              product.upc
+
+C. Mã vạch Barcode:
+   - Barcode 1D (SSCC Barcode): Mã hóa 17 chữ số 0{company_prefix}{seq:07d}{cd}
+     dưới dạng mã vạch GS1-128 với Application Identifier (00).
+
+
+3) erro_03 - PD024364 / Tem 3 Luxshare NME (Customer Erro)
+----------------------------------------------------------
+A. Quy tắc Carton SN (17 ký tự):
+   - Định dạng: {supplier_code 7 số}{YYMMDD 6 số}{sequence 4 chữ số}
+   - Ví dụ: 10126652609110001 (Supplier 1012665, ngày 11/09/2026, số thứ tự 1)
+   - Mã nhà cung ứng (supplier_code): 7 chữ số lấy từ Product.pkg_prefix
+     (mặc định xưởng Việt Nam là 1012665).
+   - Thời gian sản xuất (YYMMDD): 6 chữ số theo ngày in thực tế tại máy chủ.
+   - Bộ đếm và Reset: Riêng theo Product và supplier_code. Số thứ tự 4 chữ số
+     (0001 đến 9999) tăng liên tục trong năm và tự động reset về 0001 vào ngày
+     01/01 hàng năm. KHÔNG reset theo ngày.
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   1    ProjectStage           Dự án và giai đoạn SX      "项目: {customer_project}         生产阶段：{production_stage}"
+                                                          (ghép từ product.customer_project và product.production_stage)
+   2    LuxsharePartNo         Mã liệu nội bộ Luxshare    product.luxshare_part_number (in tại ô PartNo)
+   3    APNRev                 Phiên bản khách hàng APN   product.revision (nếu trống thì in "/")
+   4    QTY                    Số lượng thùng             str(product.packed_qty or 190)
+   5    Date                   Ngày sản xuất              YYYYMMDD (Local Server Time)
+   6    LotNo                  Mã số lô sản xuất          carton.lot_number (tự động sinh YYYYMMDD)
+   7    PartDesc               Mô tả tên hàng             product.product_desc (fallback: product.item_name)
+   8    SupplierCode           Mã nhà cung ứng            product.pkg_prefix (mặc định 1012665)
+   9    CartonSN               Mã số thùng                Carton SN 17 ký tự đã cấp
+   10   SupplierName           Tên đầy đủ nhà cung ứng    Cố định: "NIENYI VIETNAM INDUSTRIAL COMPANY LIMITED"
+   11   Origin                 Xuất xứ sản phẩm           Cố định: "VIETNAM"
+   12   QR_Content             Nội dung mã QR 2D          Chuỗi định dạng ghép ngăn cách bởi "$":
+                                                          {CartonSN}${SupplierCode}${SupplierName}${LuxsharePartNo}${QR_APNRev}${LotNo}${Date}${QTY}$$$$$$
+                                                          (Lưu ý: Nếu APNRev là "/" thì QR_APNRev để rỗng)
+   13   QRCode_Content         Bí danh nội dung QR        Giống 100% QR_Content (đảm bảo tương thích file tem)
+
+C. Mã vạch Barcode và QR Code:
+   - Barcode 1D: In mã CartonSN 17 ký tự.
+   - QR Code 2D: Chuỗi ghép 14 trường ngăn cách bằng ký tự "$" theo chuẩn Luxshare.
+
+
+4) erro_04 - PD027032 / Tem eero Mỹ (Customer Erro)
+---------------------------------------------------
+A. Quy tắc Carton SN (8 ký tự):
+   - Định dạng: {H|K}{mã ngày Base32 3 ký tự}{sequence Base32 4 ký tự}
+   - Tiền tố cáp: Bắt buộc cấu hình trên Product:
+     + "H": Dành cho cáp CAT6A.
+     + "K": Dành cho cáp CAT5E.
+   - Bảng ký tự Base-32 chuẩn PD027032 (32 ký tự):
+     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F, G, H, J, K, M, N, P, Q, R, S, T, V, W, X, Y, Z
+     (Loại trừ 4 chữ cái dễ nhầm lẫn: I, L, O, U).
+   - Mã ngày Base-32 (3 ký tự: Năm, Tháng, Ngày):
+     + Mã năm (1 ký tự): Bảng tra cứu 2023="3", 2024="4", 2025="5", 2026="6",
+       2027="7", 2028="8", 2029="9", 2030="A", 2031="B", 2032="C", 2033="D", 2034="E".
+     + Mã tháng (1 ký tự): Base32[tháng] (Tháng 1="1" ... Tháng 10="A", Tháng 12="C").
+     + Mã ngày (1 ký tự): Base32[ngày] (Ngày 1="1" ... Ngày 31="Z").
+   - Số thứ tự Base-32 (4 ký tự):
+     + Bắt đầu 0001, tăng dần 0002...000Z, 0010... đến ZZZZ.
+     + Bộ đếm dùng chung cho TOÀN BỘ Product erro_04 (chung cả tiền tố H và K).
+     + Tự động reset về 0001 vào ngày 01/01 đầu năm dương lịch (theo mã năm mới).
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   1    UPC                    Mã UPC sản phẩm            product.upc
+   2    SKU                    Mã SKU sản phẩm            product.item_name
+   3    CartonID               Mã thùng Carton ID (8 ký tự)Carton SN đã cấp phát (VD: H69B0001)
+   4    SupplierPN             Mã Spec nhà sản xuất (Mfr) product.mfr_pn
+   5    PO                     Mã Purchase Order          carton.po_number (BẮT BUỘC NHẬP)
+   6    Date                   Ngày sản xuất định dạng số YYMMDD (Local Server Time, VD: 260911)
+   7    Qty                    Số lượng đóng gói          str(product.packed_qty)
+   8    Rev                    Phiên bản bản vẽ (Revision)product.revision (Metadata bắt buộc)
+   9    SKUDescription         Mô tả chi tiết SKU         product.product_desc
+
+C. Dữ liệu quản trị đi kèm:
+   - Lot Number: Backend tự động gán YYYYMMDD snapshot vào bản ghi CSDL để phục
+     vụ truy xuất Production Run (trường này không in hiển thị trên nhãn).
+
+
+5) erro_05 - PD016906 / Tem Pegatron NN9 (Customer Erro)
+--------------------------------------------------------
+A. Quy tắc Carton SN (18 ký tự):
+   - Định dạng: {pkg_prefix 8 ký tự}2{YYWW 4 số}{sequence 5 chữ số}
+   - Ví dụ: MC220TW12263750001
+   - Mã nhà cung ứng (pkg_prefix): 8 ký tự, lấy từ Product.pkg_prefix
+     (mặc định MC220TW1).
+   - Ký tự cố định: "2".
+   - Tuần sản xuất (YYWW): 2 số cuối năm + 2 số tuần ISO tại thời điểm in.
+   - Số thứ tự (sequence): 5 chữ số thuộc dải 50001 đến 99999 cho xưởng Việt Nam
+     (theo quy chuẩn bản vẽ Pegatron NN9 Rev I).
+   - Bộ đếm và Reset: Dùng chung một bộ đếm cho tất cả Product erro_05. Tự động
+     reset về 50001 vào 00:00:00 ngày đầu tiên mỗi tháng (Local Server Time).
+     Khi chạm ngưỡng 99999 trong tháng, hệ thống chặn in, không tự ý quay vòng.
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   1    CartonNo               Mã số thùng (18 ký tự)     Carton SN đã cấp phát
+   2    Item                   Tên mã sản phẩm            product.item_name
+   3    DESC                   Mô tả sản phẩm             product.product_desc
+   4    DateCode               Mã tuần sản xuất           YYWW (tuần ISO)
+   5    LotCode                Mã lô sản xuất             carton.lot_number (tự động sinh YYYYMMDD)
+   6    QTY                    Số lượng thùng             str(product.packed_qty or 1000)
+   7    MPN                    Mã Manufacturer PN         Để rỗng mặc định ("")
+   8    Rev                    Phiên bản sản phẩm         product.revision
+   9    Config                 Cấu hình                   Để rỗng mặc định ("")
+   10   Batch                  Mã số lô đơn hàng          carton.po_number (nếu có)
+   11   Stage                  Giai đoạn sản xuất         Để rỗng mặc định ("")
+   12   QRCode_Content         Nội dung mã QR 2D          Chuỗi ghép ngăn cách dấu phẩy:
+                                                          {CartonNo},{Item},{MPN},{Batch},{QTY},{DateCode},{LotCode}
+
+C. Mã vạch Barcode và QR Code:
+   - Barcode 1D: In mã CartonNo (18 ký tự).
+   - QR Code 2D: Ghép 7 trường ngăn cách bởi dấu phẩy theo chuẩn Pegatron.
+
+
+6) UI Standard - Mẫu tem Tiêu chuẩn (Customer UI)
+-------------------------------------------------
+A. Quy tắc Carton SN:
+   - Định dạng: {start_part}{YYMM}{middle_part}{sequence 5 chữ số}
+   - Ví dụ: CN2610A00001 (start_part="CN", tháng 10/2026, middle_part="A", số 1)
+   - start_part: Tiền tố Carton Number (mặc định "CN").
+   - middle_part: Ký tự phân biệt sản phẩm (VD: "A", "B", cấu hình trên Product).
+   - Bộ đếm và Reset: Riêng theo Product. Tự động reset về 00001 vào ngày đầu
+     mỗi tháng (do tiền tố chứa YYMM).
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   1    ItemName               Tên sản phẩm UI            product.item_name
+   2    QTY                    Số lượng thực tế kèm đơn vịf"{actual_qty} PCS"
+   3    CartonSN               Mã số thùng duy nhất       Carton SN đã cấp phát
+   4    UPC                    Mã vạch sản phẩm tiêu chuẩnproduct.upc
+   5    Origin                 Xuất xứ hàng hóa           "Made in Vietnam" (VN) / "Made in China" (CN)
+   6    QR_Content             Nội dung mã QR 2D          Danh sách các mã sê-ri con (Item SN)
+                                                          bên trong thùng nối bằng ký tự xuống dòng (&#xA;)
+
+
+7) UI Detailed - Mẫu tem Chi tiết Lưới sê-ri (Customer UI)
+----------------------------------------------------------
+A. Quy tắc Carton SN:
+   - Hoàn toàn giống mẫu UI Standard ở trên.
+
+B. Danh sách các trường in (NamedSubStrings BarTender):
+   - Bao gồm toàn bộ 6 trường của UI Standard (ItemName, QTY, CartonSN, UPC,
+     Origin, QR_Content).
+   - Bổ sung thêm các trường chi tiết lưới sê-ri:
+   STT  Tên trường (SubString) Ý nghĩa                    Nguồn dữ liệu / Công thức sinh
+   7    ItemName2              Tên sản phẩm phụ 1         product.item_name
+   8    ItemName3              Tên sản phẩm phụ 2         product.item_name
+   9    MAC_ID                 Tiêu đề khối danh sách con f"MAC ID ({actual_qty})"
+   10   SN_1 đến SN_40         Mã sản phẩm con thứ 1..40  Lấy lần lượt mã sê-ri con của từng Item
+                                                          đã quét vào thùng; ô chưa có để khoảng trắng " "
+
+
+QUY TRÌNH XỬ LÝ LỖI, IN LẠI VÀ THIẾT LẬP MỐC BỘ ĐẾM
+----------------------------------------------------
+1. Quy tắc Tem hỏng / Kẹt giấy (Reprint):
+   - Với Khách hàng UI: Cho phép công nhân thao tác Reprint trực tiếp tại trạm
+     đóng gói khi cần in lại tem.
+   - Với Khách hàng Erro: Trạm cân không có nút Reprint. Thao tác in lại bắt buộc
+     phải do tài khoản mang Role Admin thực hiện từ màn hình Lịch sử Carton
+     (ADR-0009). Bản ghi in lại có cờ is_reprint = 1, giữ nguyên 100% mã Carton SN
+     cũ và không làm tăng bộ đếm tự động.
+   - Tuyệt đối không xóa Carton vật lý trên CSDL để tránh làm mất vết và gây
+     trùng mã trong thực tế.
+
+2. Quy trình thiết lập số khởi đầu / Bổ sung lịch sử (Admin Carton Creation):
+   - Áp dụng khi đưa một mã hàng Erro đã in ngoài hệ thống vào nhà máy (ADR-0013).
+   - Tài khoản Admin vào phân hệ Quản trị -> chọn Product Erro -> chọn Tạo Carton
+     Admin -> nhập số thứ tự chưa tồn tại cùng lý do nghiệp vụ.
+   - Hệ thống tạo và in một Carton thật với Station ID = ADMIN. Sau đó các máy
+     trạm cân sẽ tự động cấp số kế tiếp = Số lớn nhất trong CSDL + 1.
+
+
+TỆP MÃ NGUỒN VÀ MẪU XML THAM CHIẾU
+----------------------------------
+Backend Allocators:
+  - backend_v2/src/features/carton/erro_01_sn_allocator.py
+  - backend_v2/src/features/carton/sscc_allocator.py
+  - backend_v2/src/features/carton/erro_03_sn_allocator.py
+  - backend_v2/src/features/carton/erro_04_sn_allocator.py
+  - backend_v2/src/features/carton/erro_05_sn_allocator.py
+  - backend_v2/src/features/carton/sn_allocator.py
+  - backend_v2/src/features/carton/service.py
+
+BarTender Integration & Domain Models:
+  - backend_v2/src/features/print/domain.py
+  - backend_v2/src/features/print/service.py
+  - backend_v2/src/features/print/templates/erro_01.xml
+  - backend_v2/src/features/print/templates/erro_02.xml
+  - backend_v2/src/features/print/templates/erro_03.xml
+  - backend_v2/src/features/print/templates/erro_04.xml
+  - backend_v2/src/features/print/templates/erro_05.xml
+  - backend_v2/src/features/print/templates/base.xml
+  - backend_v2/src/features/print/templates/detailed.xml

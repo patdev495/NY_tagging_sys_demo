@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<XMLScript Version="2.0">
+    <Command Name="Job1">
+        <Print>
+            <Format>{template_path}</Format>
+            <PrintSetup>{printer_tag}</PrintSetup>
+            <NamedSubString Name="UPC"><Value>{upc}</Value></NamedSubString>
+            <NamedSubString Name="SKU"><Value>{sku}</Value></NamedSubString>
+            <NamedSubString Name="CartonID"><Value>{carton_id}</Value></NamedSubString>
+            <NamedSubString Name="SupplierPN"><Value>{supplier_pn}</Value></NamedSubString>
+            <NamedSubString Name="PO"><Value>{po}</Value></NamedSubString>
+            <NamedSubString Name="Date"><Value>{date}</Value></NamedSubString>
+            <NamedSubString Name="Qty"><Value>{qty}</Value></NamedSubString>
+            <NamedSubString Name="Rev"><Value>{rev}</Value></NamedSubString>
+            <NamedSubString Name="SKUDescription"><Value>{sku_description}</Value></NamedSubString>
+        </Print>
+    </Command>
+</XMLScript>

@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NY Tagging System V2 — Cẩm Nang Toàn Diện Kiến Trúc & Luồng Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-secondary: #101522;
+      --bg-card: rgba(18, 24, 38, 0.75);
+      --bg-card-hover: rgba(26, 35, 54, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: #3b82f6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #8b5cf6;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.65;
+      overflow-x: hidden;
+      display: flex;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242f48;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Sidebar Navigation */
+    aside.sidebar {
+      width: 320px;
+      min-width: 320px;
+      height: 100vh;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(16, 21, 34, 0.95);
+    }
+
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .badge-live::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    .sidebar-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+    }
+
+    .nav-group-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      padding: 12px 10px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.86rem;
+      font-weight: 500;
+      border-radius: 8px;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      color: #fff;
+      background: rgba(59, 130, 246, 0.12);
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    .nav-item .icon {
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+
+    /* Main Content Area */
+    main.content {
+      flex: 1;
+      padding: 40px 60px 100px;
+      max-width: 1400px;
+      overflow-y: auto;
+    }
+
+    /* Hero Banner */
+    .hero {
+      background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(88, 28, 135, 0.15) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 16px;
+      padding: 36px 40px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: #cbd5e1;
+      max-width: 900px;
+      line-height: 1.7;
+    }
+
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill strong {
+      color: #fff;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 60px;
+      scroll-margin-top: 40px;
+    }
+
+    h2.section-heading {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    h2.section-heading .num {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 800;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h3.sub-heading {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin: 28px 0 14px;
+    }
+
+    p.lead-text {
+      font-size: 1rem;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+
+    /* Grid & Cards */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s ease;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title .tag {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .tag-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .tag-green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .tag-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .tag-purple { background: rgba(139, 92, 246, 0.2); color: #c084fc; }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin: 20px 0;
+      background: var(--bg-secondary);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      color: #94a3b8;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Code Blocks */
+    pre {
+      background: #060910 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      line-height: 1.6;
+      margin: 16px 0;
+      color: #e2e8f0;
+      position: relative;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: rgba(255, 255, 255, 0.08);
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+    }
+
+    .code-lang-tag {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    /* Architecture Flow Diagrams (Pure CSS/SVG) */
+    .flowchart-container {
+      background: #090e18;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 28px;
+      margin: 24px 0;
+      overflow-x: auto;
+    }
+
+    .flow-step {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: #fff;
+      font-size: 0.88rem;
+      display: inline-block;
+      min-width: 200px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .flow-step strong {
+      display: block;
+      color: #60a5fa;
+      margin-bottom: 4px;
+      font-size: 0.92rem;
+    }
+
+    .flow-arrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      color: #94a3b8;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    /* Interactive Tabs */
+    .tab-header {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px 18px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+    }
+
+    .tab-btn.active {
+      color: #38bdf8;
+      border-bottom-color: #38bdf8;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Callouts */
+    .callout {
+      border-left: 4px solid var(--accent-blue);
+      background: rgba(59, 130, 246, 0.08);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 20px;
+      margin: 20px 0;
+      font-size: 0.92rem;
+      color: #e2e8f0;
+    }
+
+    .callout-warning {
+      border-left-color: var(--accent-amber);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    .callout-success {
+      border-left-color: var(--accent-emerald);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Syntax highlight colors */
+    .c-kw { color: #f43f5e; font-weight: 600; }
+    .c-fn { color: #38bdf8; font-weight: 600; }
+    .c-str { color: #34d399; }
+    .c-num { color: #fbbf24; }
+    .c-cm { color: #64748b; font-style: italic; }
+    .c-typ { color: #c084fc; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="badge-live">Production Architecture V2</div>
+      <div class="sidebar-title">
+        <span>🏭</span> NY Tagging Sys
+      </div>
+      <div class="sidebar-subtitle">Hệ Thống Đóng Gói & In Tem Thùng (Carton)</div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <div class="nav-group-title">Tổng Quan & Bản Đồ Miền</div>
+      <a href="#overview" class="nav-item active"><span class="icon">🧭</span> 1. Tổng quan hệ thống</a>
+      <a href="#domain-model" class="nav-item"><span class="icon">🗄️</span> 2. Database & Domain Models</a>
+      
+      <div class="nav-group-title">Luồng Nghiệp Vụ Cốt Lõi</div>
+      <a href="#flow-ui-scan" class="nav-item"><span class="icon">📦</span> 3. Luồng UI (Item Scan Mode)</a>
+      <a href="#flow-erro-weigh" class="nav-item"><span class="icon">⚖️</span> 4. Luồng Erro (Weight Scale Mode)</a>
+      <a href="#sn-algorithms" class="nav-item"><span class="icon">🔢</span> 5. Thuật toán 5 Dòng Tem Erro</a>
+
+      <div class="nav-group-title">Hạ Tầng & Phần Cứng</div>
+      <a href="#print-engine" class="nav-item"><span class="icon">🖨️</span> 6. BarTender COM & BTXML</a>
+      <a href="#scale-engine" class="nav-item"><span class="icon">🔌</span> 7. Scale Serial RS-232 & Hotkey</a>
+      <a href="#frontend-arch" class="nav-item"><span class="icon">💻</span> 8. Frontend State Machine (Vue 3)</a>
+
+      <div class="nav-group-title">Thực Hành Cho Kỹ Sư</div>
+      <a href="#coding-guide" class="nav-item"><span class="icon">🛠️</span> 9. Hướng dẫn Code từ con số 0</a>
+      <a href="#deployment" class="nav-item"><span class="icon">🚀</span> 10. Đóng gói & Deploy</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- HERO SECTION -->
+    <div class="hero" id="overview">
+      <h1>Cẩm Nang Kiến Trúc & Luồng Code Hệ Thống NY Tagging V2</h1>
+      <p>
+        Tài liệu đặc tả kỹ thuật chi tiết dành cho kỹ sư phần mềm (Software Engineer) muốn hiểu trọn vẹn từ nguyên lý kinh doanh, mô hình cơ sở dữ liệu, các thuật toán sinh sê-ri chuẩn GS1/Amazon/Pegatron, cho đến cơ chế tự động hóa điều khiển máy in BarTender qua Windows COM và đọc cân điện tử RS-232.
+      </p>
+      <div class="meta-pills">
+        <div class="pill"><strong>Backend:</strong> FastAPI + SQLAlchemy 2.0 (UV only)</div>
+        <div class="pill"><strong>Frontend:</strong> Vue 3 + TypeScript + Tailwind CSS</div>
+        <div class="pill"><strong>Print Agent:</strong> Python COM Automation + PySerial</div>
+        <div class="pill"><strong>Cơ sở dữ liệu:</strong> SQLite (Local) / SQL Server (Linked Server ERP)</div>
+        <div class="pill"><strong>Hardware:</strong> OKS Weighing Scale + Zebra / Godex / TSC Printers</div>
+      </div>
+    </div>
+
+    <!-- 1. TỔNG QUAN HỆ THỐNG -->
+    <section>
+      <h2 class="section-heading">
+        <span class="num">1</span> Bức Tranh Toàn Cảnh: Kiến Trúc 3 Tầng (3-Tier Distributed System)
+      </h2>
+      <p class="lead-text">
+        Hệ thống được thiết kế theo mô hình lai phân tán (Hybrid Distributed Architecture) để giải quyết bài toán đặc thù nhà máy: <strong>Hệ thống máy chủ trung tâm quản lý dữ liệu, nhưng việc in ấn và đọc cảm biến cân phải tương tác trực tiếp với phần cứng vật lý tại từng trạm công nhân</strong>.
+      </p>
+
+      <div class="flowchart-container">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+          <div class="flow-step">
+            <strong>TẦNG CLIENT (BROWSER)</strong>
+            Trạm đóng gói Vue 3 SPA<br>
+            Quét mã vạch + Hiển thị Cân<br>
+            Hotkeys F9/Space + Preview Tem
+          </div>
+          <div class="flow-arrow">⇄ (REST / HTTP) ⇄</div>
+          <div class="flow-step" style="border-color: #10b981;">
+            <strong>BACKEND SERVER (FASTAPI)</strong>
+            Xác thực Nghiệp vụ & Khóa DB<br>
+            Thuật toán sinh Carton SN<br>
+            Sinh BarTender XMLScript (BTXML)<br>
+            Đồng bộ ERP ShopFloorDW
+          </div>
+          <div class="flow-arrow">⇄ (Cục bộ 127.0.0.1) ⇄</div>
+          <div class="flow-step" style="border-color: #8b5cf6;">
+            <strong>PRINT AGENT V2 (WORKSTATION)</strong>
+            Điều khiển BarTender COM App<br>
+            Lắng nghe Cân RS-232 / USB Serial<br>
+            Đọc phím Global Hotkey (F9)<br>
+            Mở file .btw kiểm tra tem
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">
+            <span>FastAPI Core Server</span>
+            <span class="tag tag-green">Port 8000</span>
+          </div>
+          <p style="font-size: 0.88rem; color: #94a3b8;">
+            Lưu trữ trạng thái toàn hệ thống, cung cấp RESTful APIs cho quản lý Catalog (Customer, Product), Carton History, Job Order Pre-allocation, kiểm soát trùng sê-ri con và khóa dòng (Row-level Locking) với SQLite/PostgreSQL/SQL Server.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Vue 3 Workstation SPA</span>
+            <span class="tag tag-blue">Port 3000 / Static</span>
+          </div>
+          <p style="font-size: 0.88rem; color: #94a3b8;">
+            Giao diện tối ưu hóa cho màn hình cảm ứng công nhân và máy quét mã vạch 2D. Có 2 phân hệ chuyên biệt: <strong>Trạm Quét UI (Item Scan)</strong> và <strong>Trạm Cân Erro (Weight Scale)</strong> kèm âm thanh cảnh báo Beep/Error.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Print & Scale Agent</span>
+            <span class="tag tag-purple">Port 8001 / Localhost</span>
+          </div>
+          <p style="font-size: 0.88rem; color: #94a3b8;">
+            Ứng dụng Python chạy ngầm dưới khay hệ thống Windows của từng máy tính trạm. Nhúng thư viện <code>win32com</code> để điều khiển <code>bartend.exe</code> và luồng nền (background thread) <code>pyserial</code> đọc cân liên tục.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. DATABASE & DOMAIN MODEL -->
+    <section id="domain-model">
+      <h2 class="section-heading">
+        <span class="num">2</span> Mô Hình Thực Thể & Cơ Sở Dữ Liệu (Domain Entities)
+      </h2>
+      <p class="lead-text">
+        Cơ sở dữ liệu được định nghĩa bằng SQLAlchemy 2.0 ORM trong file <code>backend_v2/src/core/models.py</code>. Dưới đây là các thực thể quan trọng nhất:
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Bảng (Table)</th>
+              <th>Khóa chính & Quan hệ</th>
+              <th>Các trường cốt lõi</th>
+              <th>Mục đích nghiệp vụ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>customers</code></td>
+              <td><code>id</code> (PK)</td>
+              <td><code>code</code> (UI, ERRO), <code>name</code></td>
+              <td>Phân biệt các đối tác khách hàng và quy tắc in tương ứng.</td>
+            </tr>
+            <tr>
+              <td><code>products</code></td>
+              <td><code>id</code> (PK), FK <code>customer_id</code></td>
+              <td>
+                <code>item_name</code>, <code>upc</code>, <code>packed_qty</code>, <code>template_type</code>,
+                <code>packing_mode</code>, <code>min_weight</code>, <code>max_weight</code>, <code>mfr_pn</code>, <code>pkg_prefix</code>, <code>asin</code>, <code>revision</code>, <code>carton_id_prefix</code>
+              </td>
+              <td>Định nghĩa con hàng: Số lượng/thùng, dải cân dung sai, mẫu tem BarTender, quy tắc sinh sê-ri.</td>
+            </tr>
+            <tr>
+              <td><code>product_internal_factory_part_numbers</code></td>
+              <td><code>id</code> (PK), FK <code>product_id</code></td>
+              <td><code>internal_factory_part_number</code>, <code>source_drawing_code</code></td>
+              <td>Bảng ánh xạ Factory P/N (Mã liệu nội bộ xưởng 厂内料号, vd <code>1LAE...</code>) từ ERP ShopFloorDW sang Product.</td>
+            </tr>
+            <tr>
+              <td><code>cartons</code></td>
+              <td><code>id</code> (PK), FK <code>product_id</code></td>
+              <td>
+                <code>carton_sn</code>, <code>job_order</code>, <code>status</code> (FAILED, SUCCESS, PRINTED),
+                <code>weight</code>, <code>po_number</code>, <code>lot_number</code>, <code>date_code</code>, <code>is_reprint</code>, <code>btxml</code>
+              </td>
+              <td>Lưu thông tin mỗi thùng hàng vật lý đã in, snapshot trọng lượng thực tế, lịch sử lệnh in BTXML để phục vụ Reprint.</td>
+            </tr>
+            <tr>
+              <td><code>carton_items</code></td>
+              <td><code>id</code> (PK), FK <code>carton_id</code></td>
+              <td><code>item_sn</code> (Index)</td>
+              <td>Danh sách các mã sê-ri con được quét vào thùng ở chế độ <code>item_scan</code>.</td>
+            </tr>
+            <tr>
+              <td><code>ui_item_sn_claims</code></td>
+              <td><code>item_sn</code> (PK)</td>
+              <td><code>carton_id</code> (Index)</td>
+              <td>Khóa chống trùng sê-ri con cấp độ cơ sở dữ liệu. Đảm bảo 1 Item SN chỉ thuộc về duy nhất 1 Carton tại 1 thời điểm.</td>
+            </tr>
+            <tr>
+              <td><code>job_order_carton_slots</code></td>
+              <td><code>id</code> (PK), FK <code>product_id</code></td>
+              <td><code>job_order</code>, <code>carton_number</code> (1..N), <code>carton_sn</code> (Unique), <code>status</code> (PENDING, SCANNED)</td>
+              <td>Danh sách các slot thùng được cấp phát trước (Pre-allocation) cho công lệnh của khách hàng UI.</td>
+            </tr>
+            <tr>
+              <td><code>users</code></td>
+              <td><code>id</code> (PK)</td>
+              <td><code>username</code>, <code>password_hash</code>, <code>role</code> (admin, qa)</td>
+              <td>Kiểm soát quyền truy cập RBAC (Role-Based Access Control).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ QUY TẮC BẤT BIẾN THỜI GIAN (Local Server Time Standard)</div>
+        Toàn bộ mốc thời gian (<code>created_at</code>, <code>scanned_at</code>, <code>Lot Number: YYYYMMDD</code>, <code>Date Code: YYWW</code>, <code>Date Code: YYMM</code>) <strong>BẮT BUỘC</strong> sử dụng giờ cục bộ của máy chủ nhà máy (Local Server Time), tuyệt đối không dùng múi giờ UTC để tránh lệch ngày/ca làm việc giữa báo cáo kế toán và tem BarTender. (Xem <a href="#adr-0002" style="color: #60a5fa;">ADR 0002</a>).
+      </div>
+    </section>
+
+    <!-- 3. FLOW 1: UI CUSTOMER (ITEM SCAN MODE) -->
+    <section id="flow-ui-scan">
+      <h2 class="section-heading">
+        <span class="num">3</span> Luồng Code 1: Trạm Đóng Gói UI (Item Scan Mode)
+      </h2>
+      <p class="lead-text">
+        Chế độ áp dụng cho khách hàng <strong>Universal Instruments (UI)</strong>. Công nhân quét từng sê-ri sản phẩm (Item SN) cho tới khi đủ số lượng <code>packed_qty</code> (hoặc đóng thiếu nếu có cờ <code>allow_partial</code>).
+      </p>
+
+      <div class="card" style="margin-bottom: 24px;">
+        <h4 style="color: #60a5fa; margin-bottom: 12px;">Sơ đồ luồng xử lý từ lúc nhập Job Order đến khi in tem:</h4>
+        <pre><code class="language-text">1. Công nhân nhập Job Order (vd: 24080123)
+   │
+   ├──> Backend truy vấn ERP [192.168.206.18].ShopFloorDW.DBO.F4801
+   │    Lấy ra: Mã liệu (walitm), Khách hàng (wadl01), Số lượng (wauorg)
+   │
+   ├──> Khớp với Product trong DB -> Tính tổng số thùng: N = ceil(Quantity / packed_qty)
+   │
+   └──> Cấp phát trước N Slot thùng (job_order_carton_slots) với Carton SN tăng dần:
+        Format: CN + YYMM + [Product Letter] + [5-digit Counter: 00001..99999]
+        (Reset số thứ tự về 00001 vào ngày đầu tiên mỗi tháng)
+   │
+2. Trạm đóng gói nhận danh sách Slot -> Chọn Slot 1 (PENDING)
+   │
+   ├──> VÒNG LẶP QUÉT SÊ-RI CON (Item SN):
+   │    - Kiểm tra độ dài & Regex Pattern
+   │    - Kiểm tra trùng lặp trong bộ đệm quét hiện tại (scannedItems)
+   │    - Gọi API kiểm tra xung đột DB: ui_item_sn_claims
+   │      -> Nếu mã đã thuộc thùng khác: Báo động âm thanh, mở Modal tra cứu lịch sử thùng cũ
+   │    - Đạt đủ số lượng packed_qty (ví dụ: 15/15 PCS)
+   │
+3. KÍCH HOẠT HOÀN TẤT THÙNG (Finalize Carton):
+   │
+   ├──> Backend: Tạo bản ghi Carton với status = 'FAILED' (Mẫu FAILED-First)
+   │    - Lưu quan hệ CartonItem và xác lập quyền sở hữu trong ui_item_sn_claims
+   │    - Render file BarTender XMLScript (BTXML) nạp các trường:
+   │      ItemName, QTY, CartonSN, UPC, QR_Content (chứa 15 sê-ri con cách nhau bởi \n)
+   │    - Lưu chuỗi BTXML vào cột carton.btxml (để in lại bất kỳ lúc nào)
+   │
+   ├──> Client gửi BTXML tới Print Agent cục bộ (http://127.0.0.1:8001/print)
+   │    - Print Agent gọi BarTender COM Engine mở template carton.btw
+   │    - Nạp NamedSubStrings -> Kích hoạt Format.PrintOut()
+   │
+   └──> Máy in nhả tem thành công -> Gửi phản hồi 200 OK
+        - Backend cập nhật status = 'SUCCESS' (hoặc 'PRINTED')
+        - Cập nhật slot status = 'SCANNED'
+        - Trạm đóng gói rơi vào trạng thái KHÓA CHỜ (Awaiting Next):
+          Công nhân PHẢI bấm nút "Thùng tiếp theo" hoặc nhấn phím Spacebar mới được quét thùng kế!</code></pre>
+      </div>
+
+      <h3 class="sub-heading">Đoạn Code Cốt Lõi: Mẫu FAILED-First & Đặt Claim Chống Trùng (service.py)</h3>
+      <pre><code class="language-python"><span class="c-cm"># backend_v2/src/features/carton/service.py</span>
+<span class="c-kw">def</span> <span class="c-fn">create_carton</span>(carton_in: schemas.CartonCreate, db: Session):
+    <span class="c-cm"># 1. Khóa hàng Product bằng with_for_update() để ngăn chặn Race Condition</span>
+    product = db.query(models.Product).filter(
+        models.Product.id == carton_in.product_id
+    ).with_for_update().first()
+
+    <span class="c-cm"># 2. Kiểm tra xung đột Item SN cấp độ DB thông qua bảng ui_item_sn_claims</span>
+    <span class="c-kw">if</span> product.customer <span class="c-kw">and</span> product.customer.code == <span class="c-str">"UI"</span>:
+        reject_ui_item_sn_conflicts(db, carton_in.items)
+
+    <span class="c-cm"># 3. Lấy slot thùng đang chờ (PENDING)</span>
+    slot = slot_lifecycle.get_pending_slot_for_carton_creation(
+        db, slot_id=carton_in.slot_id, job_order=carton_in.job_order, product_id=carton_in.product_id
+    )
+
+    <span class="c-cm"># 4. Khởi tạo Carton với trạng thái ban đầu là 'FAILED'</span>
+    <span class="c-cm"># Đảm bảo nếu BarTender bị kẹt giấy/lỗi nguồn, sê-ri vẫn được bảo toàn và cho phép Retry</span>
+    new_carton = models.Carton(
+        product_id=product.id,
+        carton_sn=slot.carton_sn,
+        packed_by=carton_in.printer_name <span class="c-kw">or</span> <span class="c-str">"System"</span>,
+        job_order=carton_in.job_order,
+        status=<span class="c-str">"FAILED"</span>,
+        carton_origin=carton_in.carton_origin,
+        station_id=carton_in.station_id
+    )
+    db.add(new_carton)
+    db.flush()
+
+    <span class="c-cm"># 5. Chiếm quyền sở hữu Item SNs</span>
+    <span class="c-kw">if</span> product.customer <span class="c-kw">and</span> product.customer.code == <span class="c-str">"UI"</span>:
+        replace_ui_item_sn_claims(db, new_carton.id, carton_in.items)
+
+    <span class="c-cm"># 6. Sinh chuỗi BarTender XMLScript (BTXML)</span>
+    btxml_content = generate_btxml(new_carton, product, carton_in.items, path_to_use, carton_in.printer_name)
+    new_carton.btxml = btxml_content
+    db.commit()
+    db.refresh(new_carton)
+    <span class="c-kw">return</span> new_carton, btxml_content</code></pre>
+    </section>
+
+    <!-- 4. FLOW 2: ERRO CUSTOMER (WEIGHT SCALE MODE) -->
+    <section id="flow-erro-weigh">
+      <h2 class="section-heading">
+        <span class="num">4</span> Luồng Code 2: Trạm Cân Đóng Gói Erro (Weight Scale Mode)
+      </h2>
+      <p class="lead-text">
+        Chế độ áp dụng cho dự án cáp <strong>Amazon eero</strong> sản xuất tại nhà máy Nien Yi. Không cần quét sê-ri con mà dựa vào trọng lượng thực tế của thùng hàng đặt trên bàn cân điện tử OKS để tự động kích hoạt in tem.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span>Nguyên Lý Nhận Diện Công Lệnh Erro</span>
+            <span class="tag tag-amber">Factory P/N Mapping</span>
+          </div>
+          <p style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 12px;">
+            Khi nhập mã công lệnh (Job Order) tại trạm cân Erro:
+          </p>
+          <ul style="font-size: 0.85rem; color: #94a3b8; padding-left: 20px; line-height: 1.8;">
+            <li>Hệ thống tra cứu bảng <code>ShopFloorDW.DBO.F4801</code> lấy trường <code>walitm</code> (Mã liệu nội bộ xưởng - Factory P/N).</li>
+            <li>Khớp chính xác với bảng <code>product_internal_factory_part_numbers</code> để xác định chính xác mẫu tem (<code>erro_01</code> đến <code>erro_05</code>).</li>
+            <li>Tuyệt đối <strong>không</strong> suy luận mẫu tem từ SKU hay mô tả sản phẩm để tránh sai sót bản vẽ kỹ thuật.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Kiểm Soát Dung Sai Cân (Tolerance Engine)</span>
+            <span class="tag tag-green">Zero Defect</span>
+          </div>
+          <p style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 12px;">
+            Điều kiện tiên quyết để hệ thống chấp thuận lệnh in tem:
+          </p>
+          <ul style="font-size: 0.85rem; color: #94a3b8; padding-left: 20px; line-height: 1.8;">
+            <li>Đầu cân đang kết nối và ở trạng thái <strong>Ổn Định (Stable / ST)</strong>.</li>
+            <li>Trọng lượng thực tế: <code>min_weight &lt;= Weight &lt;= max_weight</code>.</li>
+            <li>Nếu thiếu dù chỉ 1 sợi cáp (Underweight) hoặc thừa/bỏ quên đồ vật (Overweight): <strong>Khóa cứng nút in</strong>, đổi màu giao diện sang Đỏ/Vàng và phát âm thanh cảnh báo lỗi!</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 class="sub-heading">Đoạn Code Cốt Lõi: Đóng Gói Trạm Cân & Khóa Sê-ri (weigh_pack_carton)</h3>
+      <pre><code class="language-python"><span class="c-cm"># backend_v2/src/features/carton/service.py</span>
+<span class="c-kw">def</span> <span class="c-fn">weigh_pack_carton</span>(weigh_in: schemas.CartonWeighPackCreate, db: Session):
+    product = db.query(models.Product).filter(models.Product.id == weigh_in.product_id).with_for_update().first()
+    
+    <span class="c-cm"># ADR 0005/0006: Khách hàng Erro TUYỆT ĐỐI CẤM người vận hành sửa sê-ri thùng bằng tay</span>
+    <span class="c-kw">if</span> product.customer.code == <span class="c-str">"ERRO"</span> <span class="c-kw">and</span> (weigh_in.custom_sn <span class="c-kw">is not</span> None <span class="c-kw">or</span> weigh_in.custom_yymm <span class="c-kw">is not</span> None):
+        <span class="c-kw">raise</span> HTTPException(status_code=400, detail=<span class="c-str">"Khách hàng ERRO không cho phép chỉnh sửa sê-ri thủ công!"</span>)
+
+    <span class="c-cm"># Kiểm tra dung sai trọng lượng nghiêm ngặt</span>
+    <span class="c-kw">if</span> product.min_weight <span class="c-kw">and</span> weigh_in.weight &lt; product.min_weight:
+        <span class="c-kw">raise</span> HTTPException(status_code=400, detail=f<span class="c-str">"Trọng lượng {weigh_in.weight}kg dưới mức cho phép {product.min_weight}kg"</span>)
+    <span class="c-kw">if</span> product.max_weight <span class="c-kw">and</span> weigh_in.weight &gt; product.max_weight:
+        <span class="c-kw">raise</span> HTTPException(status_code=400, detail=f<span class="c-str">"Trọng lượng {weigh_in.weight}kg vượt mức cho phép {product.max_weight}kg"</span>)
+
+    <span class="c-cm"># Snapshot LOT Number = YYYYMMDD theo Local Server Time</span>
+    allocated_at = datetime.now()
+
+    <span class="c-cm"># Điều hướng tới Allocator chuyên biệt của từng mẫu tem</span>
+    <span class="c-kw">if</span> product.template_type == <span class="c-str">"erro_01"</span>:
+        plan = plan_next_erro_01_carton_sn(db, product, custom_yymm=allocated_at.strftime(<span class="c-str">"%y%m"</span>), lock=True)
+    <span class="c-kw">elif</span> product.template_type == <span class="c-str">"erro_02"</span>:
+        plan = plan_next_sscc_carton_sn(db, product, lock=True)  <span class="c-cm"># GS1-128 SSCC-18</span>
+    <span class="c-kw">elif</span> product.template_type == <span class="c-str">"erro_03"</span>:
+        plan = plan_next_erro_03_carton_sn(db, product, custom_yymmdd=allocated_at.strftime(<span class="c-str">"%y%m%d"</span>), lock=True)
+    <span class="c-kw">elif</span> product.template_type == <span class="c-str">"erro_04"</span>:
+        plan = plan_next_erro_04_carton_sn(db, product, printed_at=allocated_at, lock=True)  <span class="c-cm"># Base32 Year Reset</span>
+    <span class="c-kw">elif</span> product.template_type == <span class="c-str">"erro_05"</span>:
+        plan = plan_next_erro_05_carton_sn(db, product, printed_at=allocated_at, lock=True)  <span class="c-cm"># Pegatron Monthly Reset 50001-99999</span></code></pre>
+    </section>
+
+    <!-- 5. THUẬT TOÁN SINH SÊ-RI 5 DÒNG TEM ERRO -->
+    <section id="sn-algorithms">
+      <h2 class="section-heading">
+        <span class="num">5</span> Chi Tiết Thuật Toán Sinh Carton SN Của 5 Mẫu Tem Erro
+      </h2>
+      <p class="lead-text">
+        Mỗi dòng tem được thiết kế để thỏa mãn tiêu chuẩn kiểm toán quốc tế khắt khe từ Amazon, Luxshare và Pegatron.
+      </p>
+
+      <!-- Tabs -->
+      <div class="tab-header">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-erro-01')">Tem 1 (PD014736)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-erro-02')">Tem 2 (SSCC-18)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-erro-03')">Tem 3 (Luxshare)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-erro-04')">Tem 4 (Base-32 eero Mỹ)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-erro-05')">Tem 5 (Pegatron NN9)</button>
+      </div>
+
+      <!-- Tab 1: Erro 01 -->
+      <div id="tab-erro-01" class="tab-pane active">
+        <div class="card">
+          <div class="card-title">
+            <span>erro_01 · Bản vẽ PD014736 (Tem Đứng eero Retail 3x5")</span>
+            <span class="tag tag-blue">Reset 01/01 hàng năm</span>
+          </div>
+          <p><strong>Cấu trúc:</strong> <code>{pkg_prefix}{YYMM}{Sequence:06d}</code> (ví dụ: <code>VHK00102372609000125</code>)</p>
+          <ul style="font-size: 0.88rem; color: #cbd5e1; margin: 10px 0 14px 20px;">
+            <li><strong>pkg_prefix:</strong> Mã tiền tố sản phẩm cấu hình riêng theo Product (vd: <code>VHK0010237</code>).</li>
+            <li><strong>YYMM:</strong> 2 số cuối năm + 2 số tháng sản xuất.</li>
+            <li><strong>Bộ đếm sê-ri:</strong> 6 chữ số (000001 - 999999). Bộ đếm tách biệt độc lập theo từng Product.</li>
+            <li><strong>Mã vạch 2D QR Code:</strong> Chứa 7 trường ngăn cách bởi dấu phẩy: <code>P{CPN},Q{QTY},M{MfrPN},D{DateCode},L{LotNo},K{PONo},S{CartonSN}</code>. Bắt buộc phải có PO Number và Lot Number!</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Tab 2: Erro 02 -->
+      <div id="tab-erro-02" class="tab-pane">
+        <div class="card">
+          <div class="card-title">
+            <span>erro_02 · Bản vẽ PD027504 (Tem Ngang CM Pallet SSCC-18 152x95mm)</span>
+            <span class="tag tag-amber">KHÔNG BAO GIỜ RESET</span>
+          </div>
+          <p><strong>Cấu trúc:</strong> <code>(00) 0 37033907 {Sequence:07d} {CheckDigit}</code></p>
+          <ul style="font-size: 0.88rem; color: #cbd5e1; margin: 10px 0 14px 20px;">
+            <li><strong>Mã định danh GS1:</strong> Tiêu chuẩn GS1-128 Serial Shipping Container Code (18 số).</li>
+            <li><strong>37033907:</strong> Mã định danh doanh nghiệp GS1 chính thức của Nien Yi.</li>
+            <li><strong>Bộ đếm:</strong> 7 chữ số (0000001 - 9999999) tăng liên tục toàn hệ thống giữa các mã cáp Tem 2, không bao giờ reset.</li>
+            <li><strong>Check Digit (Modulo 10):</strong> Tính theo công thức trọng số chuẩn GS1 (3-1-3-1...).</li>
+          </ul>
+          <pre><code class="language-python"><span class="c-cm"># Thuật toán tính chữ số kiểm tra Modulo 10 GS1</span>
+<span class="c-kw">def</span> <span class="c-fn">calculate_gs1_check_digit</span>(number_str: str) -&gt; int:
+    clean_str = <span class="c-str">""</span>.join(c <span class="c-kw">for</span> c <span class="c-kw">in</span> str(number_str) <span class="c-kw">if</span> c.isdigit())
+    total = 0
+    weights = [3, 1]
+    <span class="c-kw">for</span> i, char <span class="c-kw">in</span> enumerate(reversed(clean_str)):
+        weight = weights[i % 2]
+        total += int(char) * weight
+    remainder = total % 10
+    <span class="c-kw">return</span> 0 <span class="c-kw">if</span> remainder == 0 <span class="c-kw">else</span> (10 - remainder)</code></pre>
+        </div>
+      </div>
+
+      <!-- Tab 3: Erro 03 -->
+      <div id="tab-erro-03" class="tab-pane">
+        <div class="card">
+          <div class="card-title">
+            <span>erro_03 · Bản vẽ PD024364 (Tem Xuất Xưởng Luxshare 立讯 100x80mm)</span>
+            <span class="tag tag-green">Reset 01/01 hàng năm</span>
+          </div>
+          <p><strong>Cấu trúc Carton SN:</strong> <code>1012665{YYMMDD}{Sequence:04d}</code> (ví dụ: <code>10126652609050012</code>)</p>
+          <ul style="font-size: 0.88rem; color: #cbd5e1; margin: 10px 0 14px 20px;">
+            <li><strong>1012665:</strong> Mã nhà cung ứng Nien Yi Việt Nam tại hệ thống Luxshare NME.</li>
+            <li><strong>YYMMDD:</strong> 6 chữ số ngày sản xuất.</li>
+            <li><strong>Bộ đếm:</strong> 4 chữ số (0001 - 9999), reset về 0001 vào ngày 01/01 hàng năm, phân vùng theo Product và Supplier Code.</li>
+            <li><strong>QR Code Luxshare:</strong> <code>{CartonSN}${SupplierCode}${SupplierName}${LuxsharePartNo}${APNRev}${LotNo}${Date}${QTY}$$$$$$</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Tab 4: Erro 04 -->
+      <div id="tab-erro-04" class="tab-pane">
+        <div class="card">
+          <div class="card-title">
+            <span>erro_04 · Bản vẽ PD027032 (Tem eero Mỹ Basic Box 102x76mm)</span>
+            <span class="tag tag-purple">Chuỗi Base-32, Reset 01/01</span>
+          </div>
+          <p><strong>Cấu trúc:</strong> <code>{Prefix}{YearCode}{MonthCode}{DayCode}{Sequence:4-char Base32}</code> (8 ký tự, vd: <code>H69500A2</code>)</p>
+          <ul style="font-size: 0.88rem; color: #cbd5e1; margin: 10px 0 14px 20px;">
+            <li><strong>Prefix:</strong> Cố định theo loại cáp: <code>H</code> (cho CAT6A) hoặc <code>K</code> (cho CAT5E).</li>
+            <li><strong>Bảng ký tự Base-32:</strong> <code>0123456789ABCDEFGHJKMNPQRSTVWXYZ</code> (32 ký tự, loại bỏ hoàn toàn các ký tự dễ nhầm lẫn: <code>I, L, O, U</code>).</li>
+            <li><strong>Mã hóa ngày:</strong> Năm 2026 = <code>6</code>, Tháng 9 = <code>9</code>, Ngày 5 = <code>5</code> -> Date code = <code>695</code>.</li>
+            <li><strong>Bộ đếm dùng chung:</strong> Toàn bộ sản phẩm <code>erro_04</code> dùng chung 1 bộ đếm sê-ri 4 ký tự base-32 từ <code>0001</code> đến <code>ZZZZ</code> (tương đương 1 đến 1,048,575 thùng/năm).</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Tab 5: Erro 05 -->
+      <div id="tab-erro-05" class="tab-pane">
+        <div class="card">
+          <div class="card-title">
+            <span>erro_05 · Bản vẽ PD016906 (Tem Thùng Ngoài Pegatron NN9 102x77mm)</span>
+            <span class="tag tag-amber">Dải 50001 - 99999, Reset hàng tháng</span>
+          </div>
+          <p><strong>Cấu trúc:</strong> <code>MC220TW12{YY}{WW}{Sequence:50001..99999}</code> (18 ký tự, vd: <code>MC220TW12263650028</code>)</p>
+          <ul style="font-size: 0.88rem; color: #cbd5e1; margin: 10px 0 14px 20px;">
+            <li><strong>MC220TW1:</strong> Mã nhà cung ứng Pegatron cấp cho xưởng Nien Yi.</li>
+            <li><strong>2:</strong> Chữ số cố định chỉ định xưởng Việt Nam.</li>
+            <li><strong>YYWW:</strong> Năm (2 số) + Tuần sản xuất theo chuẩn ISO 8601 (2 số).</li>
+            <li><strong>Quy tắc Reset:</strong> Tự động reset về <code>50001</code> vào đúng 00:00 ngày 1 hàng tháng theo giờ máy chủ. Không reset theo tuần! Dùng chung cho toàn bộ 38 mã hàng Pegatron.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. PRINT ENGINE & BARTENDER COM -->
+    <section id="print-engine">
+      <h2 class="section-heading">
+        <span class="num">6</span> Động Cơ In Ấn: BarTender COM Automation & BTXML Script
+      </h2>
+      <p class="lead-text">
+        Hệ thống không render tem thành ảnh tĩnh mà tương tác trực tiếp với động cơ Seagull BarTender cài trên Windows thông qua chuẩn kết nối <strong>COM Automation (Component Object Model)</strong>.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span>Tại sao dùng BarTender COM?</span>
+            <span class="tag tag-green">Tối Ưu Phần Cứng</span>
+          </div>
+          <ul style="font-size: 0.86rem; color: #cbd5e1; padding-left: 18px; line-height: 1.8;">
+            <li>Gửi lệnh in dạng vector trực tiếp tới Driver máy in công nghiệp (Zebra ZPL, TSC TSPL) cho tốc độ in tức thì (&lt; 200ms).</li>
+            <li>Chất lượng in mã vạch 1D và QR code sắc nét ở độ phân giải 203 DPI / 300 DPI, vượt qua mọi bài kiểm tra máy đọc kiểm định hàng xuất khẩu.</li>
+            <li>Tách rời thiết kế tem (.btw) khỏi code: Kỹ sư khuôn mẫu có thể chỉnh sửa font, logo trên BarTender Designer mà không cần sửa code Python.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Cơ Chế Tự Phục Hồi (Self-Healing Engine)</span>
+            <span class="tag tag-blue">Zero Downtime</span>
+          </div>
+          <ul style="font-size: 0.86rem; color: #cbd5e1; padding-left: 18px; line-height: 1.8;">
+            <li><strong>Thread Safety:</strong> Đảm bảo <code>pythoncom.CoInitialize()</code> trên từng luồng thực thi để tránh lỗi COM Access Violation.</li>
+            <li><strong>Singleton Lock:</strong> Toàn bộ tiến trình in được đồng bộ hóa qua <code>threading.Lock()</code>.</li>
+            <li><strong>Auto-Kill Orphaned Processes:</strong> Khi BarTender bị treo hoặc rơi vào trạng thái Modal Dialog bí mật, lớp <code>BarTenderCOMApp</code> tự động chạy <code>taskkill /F /IM bartend.exe</code> và tái khởi động lại kết nối COM sạch sẽ.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 class="sub-heading">Cấu Trúc Lệnh In Chuẩn BarTender XMLScript (BTXML)</h3>
+      <pre><code class="language-xml"><span class="c-cm">&lt;!-- Chuỗi BTXML chuẩn được sinh tự động bởi BTXMLDocument.to_xml() --&gt;</span>
+&lt;XMLScript Version=<span class="c-str">"2.0"</span>&gt;
+  &lt;Command&gt;
+    &lt;Print&gt;
+      &lt;Format&gt;D:\PAT\Templates\erro_01.btw&lt;/Format&gt;
+      &lt;PrintSetup&gt;
+        &lt;Printer&gt;ZDesigner ZD230-203dpi ZPL&lt;/Printer&gt;
+        &lt;IdenticalCopiesOfLabel&gt;1&lt;/IdenticalCopiesOfLabel&gt;
+      &lt;/PrintSetup&gt;
+      &lt;NamedSubString Name=<span class="c-str">"CPN"</span>&gt;&lt;Value&gt;840-00083&lt;/Value&gt;&lt;/NamedSubString&gt;
+      &lt;NamedSubString Name=<span class="c-str">"QTY"</span>&gt;&lt;Value&gt;190 PCS&lt;/Value&gt;&lt;/NamedSubString&gt;
+      &lt;NamedSubString Name=<span class="c-str">"CartonSN"</span>&gt;&lt;Value&gt;VHK00102372609000125&lt;/Value&gt;&lt;/NamedSubString&gt;
+      &lt;NamedSubString Name=<span class="c-str">"QR_Content"</span>&gt;&lt;Value&gt;P840-00083,Q190,MNYS5998,D2636,L20260905,KPO-10293,SVHK00102372609000125&lt;/Value&gt;&lt;/NamedSubString&gt;
+    &lt;/Print&gt;
+  &lt;/Command&gt;
+&lt;/XMLScript&gt;</code></pre>
+    </section>
+
+    <!-- 7. SCALE SERIAL RS-232 & HOTKEY -->
+    <section id="scale-engine">
+      <h2 class="section-heading">
+        <span class="num">7</span> Tầng Tích Hợp Cân Điện Tử: Serial RS-232 & Global Hotkeys
+      </h2>
+      <p class="lead-text">
+        Tầng giao tiếp phần cứng cân nằm trong module <code>print_agent_v2/scale/</code>. Quản lý việc kết nối đầu cân OKS, lọc nhiễu gói tin ASCII và kích hoạt cân bằng phím tắt toàn cục.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span>Trình Bóc Tách Gói Tin Cân (parser.py)</span>
+            <span class="tag tag-purple">ASCII Continuous Stream</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px;">
+            Đầu cân phát luồng liên tục 10-20 gói/giây qua cổng RS-232. Gói tin có dạng: <code>ST,GS,+0005.42kg\r\n</code> hoặc <code>US,NT,+0000.00kg</code>.
+          </p>
+          <ul style="font-size: 0.85rem; color: #cbd5e1; padding-left: 18px; line-height: 1.7;">
+            <li>Loại bỏ ký tự điều khiển STX (<code>\x02</code>) và khoảng trắng thừa.</li>
+            <li>Lọc bỏ các dòng thông tin phi-trọng lượng: dòng ngày giờ (DATE, TIME, AM/PM), dòng gạch phân cách (===).</li>
+            <li>Phân tích cờ trạng thái: <code>ST</code> (Ổn định - Stable), <code>US</code> (Không ổn định - Unstable), <code>GS/NT</code> (Gross/Net weight).</li>
+            <li>Trích xuất số cân thực tế bằng Regex: <code>(?P&lt;weight&gt;[+-]?\s*\d+(?:[.,]\d+)?)</code>.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Lắng Nghe Phím Tắt Toàn Cục (hotkey.py)</span>
+            <span class="tag tag-blue">Windows Hook</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px;">
+            Khi công nhân đang thao tác trên bàn cân hoặc dùng bàn đạp chân (foot pedal):
+          </p>
+          <ul style="font-size: 0.85rem; color: #cbd5e1; padding-left: 18px; line-height: 1.7;">
+            <li>Đăng ký Hook bàn phím toàn cục mức hệ thống Windows (Low-level Keyboard Hook qua <code>ctypes</code> hoặc <code>keyboard</code> module).</li>
+            <li>Hỗ trợ phím <strong>F9</strong> hoặc <strong>Spacebar</strong>. Khi nhấn, Print Agent ngay lập tức bắt sự kiện và thông báo tới giao diện Web qua WebSocket hoặc Polling để thực hiện cân và in tem mà công nhân không cần rời tay click chuột.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. FRONTEND ARCHITECTURE (VUE 3) -->
+    <section id="frontend-arch">
+      <h2 class="section-heading">
+        <span class="num">8</span> Kiến Trúc Frontend Vue 3: Máy Trạng Thái (State Machines)
+      </h2>
+      <p class="lead-text">
+        Giao diện trạm đóng gói được phân tách thành các Composables linh hoạt trong <code>frontend_v2/src/features/packing/</code> để cô lập logic nghiệp vụ khỏi giao diện Vue:
+      </p>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">
+            <span>useJobOrderWorkflow.ts</span>
+            <span class="tag tag-blue">Scan State</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8;">
+            Quản lý vòng đời ca quét UI: Nhập công lệnh, cấp phát slot thùng, theo dõi danh sách sê-ri con đã quét (<code>scannedItems</code>), xử lý modal cảnh báo trùng sê-ri và trạng thái chờ thùng kế tiếp (<code>awaitingNext</code>).
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>useWeighAndPrint.ts</span>
+            <span class="tag tag-green">Weigh State</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8;">
+            Quản lý trạm cân Erro: Đồng bộ số cân trực tiếp từ Print Agent, tính toán đồng hồ đo phần trăm tải trọng (Gauge), so sánh dung sai trọng lượng và điều phối lệnh in tem thùng.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>useCartonPrinting.ts</span>
+            <span class="tag tag-purple">Print Bridge</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8;">
+            Cầu nối điều khiển lệnh in: Hỗ trợ linh hoạt chuyển đổi giữa in trực tiếp từ máy tính cục bộ (Local Agent via <code>http://127.0.0.1:8001</code>) và in qua Server tập trung, đồng thời xử lý xuất PDF khi in ảo.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. HƯỚNG DẪN CODE TỪ CON SỐ 0 -->
+    <section id="coding-guide">
+      <h2 class="section-heading">
+        <span class="num">9</span> Hướng Dẫn Xây Dựng Hệ Thống Từ Con Số 0 (Engineer Blueprint)
+      </h2>
+      <p class="lead-text">
+        Nếu bạn là một kỹ sư muốn tự tay code lại toàn bộ hệ thống này, đây là lộ trình từng bước:
+      </p>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <h4 style="color: #38bdf8; margin-bottom: 8px;">Bước 1: Khởi tạo môi trường phát triển với UV</h4>
+        <p style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 8px;">
+          Theo chuẩn kỹ thuật nghiêm ngặt của dự án, chỉ dùng <code>uv</code> làm trình quản lý Python:
+        </p>
+        <pre><code class="language-bash"><span class="c-cm"># 1. Khởi tạo dự án backend</span>
+cd backend_v2
+uv venv
+uv add fastapi uvicorn sqlalchemy pydantic python-dotenv pywin32 pyserial requests pytest
+
+<span class="c-cm"># 2. Khởi tạo dự án frontend</span>
+cd ../frontend_v2
+npm install vue vue-router pinia axios tailwindcss @headlessui/vue vue-i18n lucide-vue-next</code></pre>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <h4 style="color: #38bdf8; margin-bottom: 8px;">Bước 2: Xây dựng Module BarTender COM Singleton</h4>
+        <p style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 8px;">
+          Viết lớp kết nối BarTender bọc trong <code>threading.Lock()</code> và hỗ trợ chế độ MOCK khi lập trình trên macOS / Linux:
+        </p>
+        <pre><code class="language-python"><span class="c-kw">import</span> threading, os
+<span class="c-kw">try</span>:
+    <span class="c-kw">import</span> pythoncom, win32com.client
+    HAS_WINDOWS = True
+<span class="c-kw">except</span> ImportError:
+    HAS_WINDOWS = False
+
+<span class="c-kw">class</span> <span class="c-typ">BarTenderEngine</span>:
+    _instance = None
+    _lock = threading.Lock()
+
+    <span class="c-kw">def</span> <span class="c-fn">print_label</span>(self, btw_file: str, printer: str, substrings: dict):
+        <span class="c-kw">with</span> self._lock:
+            <span class="c-kw">if not</span> HAS_WINDOWS:
+                print(f<span class="c-str">"[MOCK PRINT] File: {btw_file}, Data: {substrings}"</span>)
+                <span class="c-kw">return</span> True
+            pythoncom.CoInitialize()
+            app = win32com.client.Dispatch(<span class="c-str">"BarTender.Application"</span>)
+            format_doc = app.Formats.Open(btw_file, False, <span class="c-str">""</span>)
+            format_doc.Printer = printer
+            <span class="c-kw">for</span> key, val <span class="c-kw">in</span> substrings.items():
+                <span class="c-kw">try</span>:
+                    format_doc.NamedSubStrings(key).Value = str(val)
+                <span class="c-kw">except</span> Exception:
+                    pass
+            format_doc.PrintOut(False, False)
+            format_doc.Close(1)  <span class="c-cm"># 1 = btDoNotSaveChanges</span>
+            <span class="c-kw">return</span> True</code></pre>
+      </div>
+
+      <div class="card">
+        <h4 style="color: #38bdf8; margin-bottom: 8px;">Bước 3: Xây dựng Bộ Đệm Đọc Cân RS-232 Liên Tục</h4>
+        <pre><code class="language-python"><span class="c-kw">import</span> serial, threading, re
+
+<span class="c-kw">class</span> <span class="c-typ">ScaleReader</span>(threading.Thread):
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(self, port=<span class="c-str">"COM3"</span>, baudrate=9600):
+        super().__init__(daemon=True)
+        self.ser = serial.Serial(port, baudrate, timeout=1)
+        self.current_weight = 0.0
+        self.is_stable = False
+
+    <span class="c-kw">def</span> <span class="c-fn">run</span>(self):
+        pattern = re.compile(r<span class="c-str">"(?P&lt;flag&gt;ST|US).*?(?P&lt;w&gt;[+-]?\s*\d+(?:\.\d+)?)\s*kg"</span>, re.IGNORECASE)
+        <span class="c-kw">while</span> True:
+            line = self.ser.readline().decode(<span class="c-str">"ascii"</span>, errors=<span class="c-str">"ignore"</span>)
+            m = pattern.search(line)
+            <span class="c-kw">if</span> m:
+                self.is_stable = (m.group(<span class="c-str">"flag"</span>).upper() == <span class="c-str">"ST"</span>)
+                self.current_weight = float(m.group(<span class="c-str">"w"</span>).replace(<span class="c-str">" "</span>, <span class="c-str">""</span>))</code></pre>
+      </div>
+    </section>
+
+    <!-- 10. ĐÓNG GÓI & DEPLOY -->
+    <section id="deployment">
+      <h2 class="section-heading">
+        <span class="num">10</span> Chiến Lược Đóng Gói (Packaging) & Triển Khai Thực Tế
+      </h2>
+      <p class="lead-text">
+        Hệ thống được đóng gói để triển khai độc lập trên các máy trạm xưởng may/lắp ráp không cần cài đặt môi trường lập trình Python:
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span>Đóng Gói Print Agent EXE (PyInstaller)</span>
+            <span class="tag tag-purple">Single Binary</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px;">
+            Được cấu hình trong file <code>NY_Print_Agent.spec</code>:
+          </p>
+          <pre><code class="language-bash"><span class="c-cm"># Biên dịch Print Agent thành tệp chạy Windows (.exe)</span>
+cd print_agent_v2
+uv run pyinstaller NY_Print_Agent.spec --clean --noconfirm</code></pre>
+          <p style="font-size: 0.84rem; color: #cbd5e1;">
+            Kết quả sinh ra thư mục <code>dist/NY_Print_Agent/</code> chứa tệp thực thi <code>NY_Print_Agent.exe</code>, có thể copy vào thư mục <code>shell:startup</code> để tự khởi động cùng máy tính trạm đóng gói.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Đóng Gói Full-Stack V2 (Vite + FastAPI)</span>
+            <span class="tag tag-green">All-in-One EXE</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px;">
+            Hệ thống cung cấp script <code>build_v2.bat</code> tự động hóa 100%:
+          </p>
+          <ol style="font-size: 0.85rem; color: #cbd5e1; padding-left: 20px; line-height: 1.8;">
+            <li>Chạy <code>npm run build</code> trong <code>frontend_v2</code> sinh ra thư mục <code>dist</code>.</li>
+            <li>Copy toàn bộ HTML/CSS/JS tĩnh vào <code>backend_v2/static</code>.</li>
+            <li>FastAPI mount thư mục static và phục vụ catch-all route cho SPA.</li>
+            <li>PyInstaller đóng gói toàn bộ server + UI thành <code>NY_Tagging_System.exe</code> chạy tại cổng 8000.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Tab switching logic
+    function switchTab(evt, tabId) {
+      const tabPanes = document.querySelectorAll('.tab-pane');
+      tabPanes.forEach(pane => pane.classList.remove('active'));
+
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      tabBtns.forEach(btn => btn.classList.remove('active'));
+
+      document.getElementById(tabId).classList.add('active');
+      evt.currentTarget.classList.add('active');
+    }
+
+    // Smooth sidebar active link sync
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('section, div.hero');
+      const navLinks = document.querySelectorAll('.sidebar-nav .nav-item');
+      
+      let currentSection = '';
+      sections.forEach(sec => {
+        const top = sec.offsetTop - 120;
+        if (window.scrollY >= top) {
+          currentSection = sec.getAttribute('id');
+        }
+      });
+
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + currentSection) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
