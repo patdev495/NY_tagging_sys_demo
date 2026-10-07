@@ -13,6 +13,7 @@ services:
     environment:
       - TZ=Asia/Ho_Chi_Minh
     volumes:
+      - ./backend_v2/database.db:/app/database.db
       - ./print_jobs:/app/print_jobs
     restart: always
 
